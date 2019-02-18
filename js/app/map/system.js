@@ -793,6 +793,8 @@ define([
                     '">' + staticData.security + '</span>'
                 );
             }
+        } else {
+            headInfoRight.push(data.region.name + ' ');
         }
 
         if(headInfoLeft.length || headInfoRight.length){
