@@ -36,7 +36,7 @@ define([
         systemLockedClass: 'pf-system-locked',                          // class for locked systems on a map
         systemHeadClass: 'pf-system-head',                              // class for system head
         systemHeadNameClass: 'pf-system-head-name',                     // class for system name
-        systemHeadCounterClass: 'pf-system-head-counter',               // class for system user counter
+        systemHeadTagClass: 'pf-system-head-tag',                       // class for system tag
         systemHeadExpandClass: 'pf-system-head-expand',                 // class for system head expand arrow
         systemHeadInfoClass: 'pf-system-head-info',                     // class for system info
         systemBodyClass: 'pf-system-body',                              // class for system body
@@ -45,6 +45,8 @@ define([
         systemBodyItemStatusClass: 'pf-user-status',                    // class for player status in system body
         systemBodyItemNameClass: 'pf-system-body-item-name',            // class for player name in system body
         systemBodyRightClass: 'pf-system-body-right',                   // class for player ship name in system body
+        systemBodyItemPilots: 'pf-system-body-pilots',                  // class for player status in system body
+        systemBodyItemStatic: 'pf-system-body-static',                  // class for static infos in wh system body
         dynamicElementWrapperId: 'pf-dialog-wrapper',                   // wrapper div for dynamic content (dialogs, context-menus,...)
 
         // endpoint classes
@@ -178,13 +180,8 @@ define([
         let systemIdAttr = system.attr('id');
         let compactView = Util.getObjVal(options, 'compactView');
 
-        // find countElement -> minimizedUI
-        let systemCount = system.find('.' + config.systemHeadCounterClass);
-
-        // find system body
         let systemBody = system.find('.' + config.systemBodyClass);
-
-        // find expand arrow
+        let pilotsContainer = system.find('.' + config.systemBodyItemPilots);
         let systemHeadExpand = system.find('.' + config.systemHeadExpandClass);
 
         let oldCacheKey = system.data('userCacheKey');
@@ -193,7 +190,6 @@ define([
         let userCounter = 0;
 
         system.data('currentUser', currentUserIsHere);
-
         // auto select system if current user is in THIS system
         if(
             currentUserIsHere &&
@@ -204,11 +200,13 @@ define([
             Util.triggerMenuAction(map.getContainer(), 'SelectSystem', {systemId: system.data('id'), forceSelect: false});
         }
 
-        // add user information
-        if(
-            data &&
-            data.user
-        ){
+        // we need to add "view mode" option to key
+        // -> if view mode change detected -> key no longer valid
+        let cacheKey = compactView ? 'compact' : 'default';
+        if(compactView){
+            cacheKey += '_' + String(currentUserIsHere | 0);
+        }
+        if(data && data.user) {
             userCounter = data.user.length;
 
             // loop all active pilots and build cache-key
@@ -221,32 +219,37 @@ define([
             let collator = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'});
             cacheArray.sort(collator.compare);
 
-            // we need to add "view mode" option to key
-            // -> if view mode change detected -> key no longer valid
-            let cacheKey = compactView ? 'compact' : 'default';
             cacheKey += '_' + cacheArray.join('_').hashCode();
+        }
 
-            // check for if cacheKey has changed
-            if(cacheKey !== oldCacheKey){
-                // set new CacheKey
-                system.data('userCacheKey', cacheKey);
-                system.data('userCount', userCounter);
+        // do we need to update the system?
+        if(cacheKey !== oldCacheKey){
+            system.data('userCacheKey', cacheKey);
+            system.data('userCount', userCounter);
+            systemBody.remove('.' + this.systemBodyItemClass);
 
-                // remove all content
-                systemBody.empty();
+            if(compactView){
+                // Show that I'm here
+                let iconCurrentUser = pilotsContainer.find('i.currentUser').clone().toggle(currentUserIsHere);
+                // If I'm not here: Prefix pilot count with icon
+                let iconPilots = pilotsContainer.find('i.pilots').clone().toggle(!currentUserIsHere && userCounter > 1);
+                // If only 1 pilot is in system: display name. Otherwise pilot count
+                let text = userCounter === 0 ? '-' : userCounter === 1 ? data.user[0].name : userCounter;
+                // Update DOM
+                pilotsContainer.text(text).prepend(iconCurrentUser).prepend(iconPilots);
+                // Highlight if pilot count changed
+                let pilotCountDiff = userCounter - oldUserCount;
+                if(pilotCountDiff !== 0) {
+                    let highlight = pilotCountDiff > 0 ? 'pf-system-body-pilots-increase' : 'pf-system-body-pilots-decrease';
+                    pilotsContainer.addClass(highlight).delay(15000).queue(() => { pilotsContainer.removeClass(highlight).dequeue(); });
+                }
 
-                if(compactView){
-                    // compact system layout-> pilot count shown in systemHead
-                    systemCount.text(userCounter);
-
-                    system.toggleSystemTooltip('destroy', {});
-                    systemHeadExpand.hide();
-                    system.toggleBody(false, map, {});
-
-                    map.revalidate(systemIdAttr);
-                }else{
-                    systemCount.empty();
-
+                system.toggleSystemTooltip('destroy', {});
+                systemHeadExpand.hide();
+                system.toggleBody(true, map, {});
+                map.revalidate(systemIdAttr);
+            } else {
+                if(userCounter){
                     // show active pilots in body + pilots count tooltip
                     // loop "again" and build DOM object with user information
                     for(let j = 0; j < data.user.length; j++){
@@ -301,25 +304,14 @@ define([
                             map.revalidate(systemIdAttr);
                         }
                     });
+                } else {
+                    // reset all elements
+                    system.toggleSystemTooltip('destroy', {});
+                    systemHeadExpand.hide();
+                    system.toggleBody(false, map, {});
+
+                    map.revalidate(systemIdAttr);
                 }
-            }
-        }else{
-            // no user data found for this system
-            system.data('userCacheKey', false);
-            system.data('userCount', 0);
-            systemBody.empty();
-
-            if(
-                oldCacheKey &&
-                oldCacheKey.length > 0
-            ){
-                // reset all elements
-                systemCount.empty();
-                system.toggleSystemTooltip('destroy', {});
-                systemHeadExpand.hide();
-                system.toggleBody(false, map, {});
-
-                map.revalidate(systemIdAttr);
             }
         }
     };
@@ -425,7 +417,7 @@ define([
                 systemName = data.alias;
             }
 
-            let systemHeadClasses = [config.systemHeadNameClass];
+            let systemHeadClasses = [config.systemHeadNameClass, Util.getNameClassForSystem(data.locked, data.effect)];
             // Abyssal system
             if(data.type.id === 3){
                 systemHeadClasses.push(Util.config.fontTriglivianClass);
@@ -444,17 +436,16 @@ define([
                     class: config.systemHeadClass
                 }).append(
                     $('<span>', {
+                        class: [config.systemHeadTagClass, secClass].join(' ')
+                    }).attr('data-value', data.tag),
+                    $('<span>', {
                         class: [config.systemSec, secClass].join(' '),
-                        text: data.security
+                        text: MapUtil.getSystemSecurityForDisplay(data.security)
                     }),
                     // System name is editable
                     $('<span>', {
                         class: systemHeadClasses.join(' '),
-                    }).attr('data-value', systemName),
-                    // System users count
-                    $('<span>', {
-                        class: [config.systemHeadCounterClass, Util.config.popoverTriggerClass].join(' ')
-                    }),
+                    }).attr('data-value', systemName).attr('title', data.name),
                     // System locked status
                     $('<i>', {
                         class: ['fas', 'fa-lock', 'fa-fw'].join(' ')
@@ -472,8 +463,40 @@ define([
                 ),
                 $('<div>', {
                     class: config.systemBodyClass
-                })
+                }).append(
+                    // System pilot count
+                    $('<span>', {
+                        class: [config.systemBodyItemPilots, Util.config.popoverTriggerClass].join(' '),
+                        text: '-'
+                    }).prepend(
+                        $('<i>', {
+                            class: ['currentUser', 'fas', 'fa-map-marker-alt', 'txt-color', 'txt-color-teal'].join(' ')
+                        }).hide()
+                    ).prepend(
+                        $('<i>', {
+                            class: ['pilots', 'fas', 'fas fa-circle '].join(' ')
+                        }).hide()
+                    )
+                )
             );
+
+            // Static infos in system body (used in compact view)
+            if(data.statics){
+                system.find('.' + config.systemBodyItemPilots).css('max-width', 88 - 18 * data.statics.length);
+                let systemBody = system.find('.' + config.systemBodyClass);
+                for(let i = data.statics.length; i >= 0; i--){
+                    let staticData = Object.assign({}, Init.wormholes[data.statics[i]]);
+                    staticData.class = Util.getSecurityClassForSystem( staticData.security );
+
+                    systemBody.append(
+                        $('<span>', {
+                            class: [staticData.class, config.systemBodyItemStatic, Util.config.popoverTriggerClass].join(' '),
+                            'data-name': staticData.name,
+                            text:  MapUtil.getSystemSecurityForDisplay(staticData.security)
+                        })
+                    );
+                }
+            }
 
             // set initial system position
             system.css({
@@ -525,11 +548,15 @@ define([
 
             // set system alias
             let alias = system.getSystemInfo(['alias']);
-
             if(alias !== data.alias){
                 // alias changed
                 alias = data.alias ? data.alias : data.name;
                 system.find('.' + config.systemHeadNameClass).editable('setValue', alias);
+            }
+
+            let tag = system.getSystemInfo(['tag']);
+            if(tag !== data.tag){
+                system.find('.' + config.systemHeadTagClass).editable('setValue', data.tag);
             }
         }
 
@@ -538,6 +565,7 @@ define([
         system.data('id', parseInt(data.id));
         system.data('systemId', parseInt(data.systemId));
         system.data('name', data.name);
+        system.data('tag', data.tag);
         system.data('typeId', parseInt(data.type.id));
         system.data('effect', data.effect);
         system.data('security', data.security);
@@ -1620,9 +1648,11 @@ define([
      */
     let makeEditable = system => {
         system = $(system);
-        let headElement = $(system).find('.' + config.systemHeadNameClass);
+        let nameElement = $(system).find('.' + config.systemHeadNameClass);
+        let tagElement = $(system).find('.' + config.systemHeadTagClass);
+        let headElements = $(nameElement).add($(tagElement));
 
-        headElement.editable({
+        nameElement.editable({
             mode: 'popup',
             type: 'text',
             name: 'alias',
@@ -1635,12 +1665,31 @@ define([
             showbuttons: false
         });
 
-        headElement.on('save', function(e, params){
+        tagElement.editable({
+            mode: 'popup',
+            type: 'text',
+            name: 'tag',
+            emptytext: '',
+            title: 'System tag',
+            placement: 'top',
+            onblur: 'submit',
+            container: 'body',
+            toggle: 'manual',       // is triggered manually on dblClick
+            showbuttons: false,
+            display: function (value) {
+                if(String(value).length) {
+                    value += ' ';
+                }
+                $(this).text(value);
+            }
+        });
+
+        headElements.on('save', function(e, params){
             // system alias changed -> mark system as updated
             MapUtil.markAsChanged(system);
         });
 
-        headElement.on('shown', function(e, editable){
+        headElements.on('shown', function(e, editable){
             // hide tooltip when xEditable is visible
             system.toggleSystemTooltip('hide', {});
 
@@ -1653,7 +1702,7 @@ define([
             }, 0, inputElement);
         });
 
-        headElement.on('hidden', function(e, editable){
+        headElements.on('hidden', function(e, editable){
             // show tooltip "again" on xEditable hidden
             system.toggleSystemTooltip('show', {show: true});
 
@@ -2021,14 +2070,24 @@ define([
         // system click events ========================================================================================
         let double = function(e){
             let system = $(this);
-            let headElement = $(system).find('.' + config.systemHeadNameClass);
+            let target = $(e.target);
+
+            if(target.hasClass(config.systemHeadNameClass)) {
+                target = system.find('.' + config.systemHeadNameClass);
+            } else {
+                target = system.find('.' + config.systemHeadTagClass);
+            }
+
+            if(!target.hasClass('editable')) {
+                return;
+            }
 
             // update z-index for system, editable field should be on top
             // move them to the "top"
             $(system).updateSystemZIndex();
 
-            // show "set alias" input (x-editable)
-            headElement.editable('show');
+            // show x-editable
+            target.editable('show');
         };
 
         let single = function(e){
@@ -2138,6 +2197,10 @@ define([
                 Util.showNotify({title: 'System locked', text: systemName,  type: 'lock'});
             }
         }
+
+        // update name class
+        let nameClass = Util.getNameClassForSystem(system.data('locked'), system.data('effect'));
+        system.find('.' + config.systemHeadNameClass).attr('class', [config.systemHeadNameClass, nameClass].join(' ') );
 
         // repaint connections
         revalidate(map, system);
@@ -2548,15 +2611,16 @@ define([
                 let userData = Util.getCurrentMapUserData(mapId);
                 let systemUserData = Util.getCharacterDataBySystemId(userData.data.systems, systemId);
 
-                counterElement.addSystemPilotTooltip(systemUserData, {
-                    trigger: 'manual',
-                    placement: 'right'
-                }).setPopoverSmall().popover('show');
+                if(systemUserData.length){
+                    counterElement.addSystemPilotTooltip(systemUserData, {
+                        trigger: 'manual'
+                    }).setPopoverSmall().popover('show');
+                }
             },
             out: function(e){
                 $(this).destroyPopover();
             },
-            selector: '.' + config.systemHeadCounterClass
+            selector: '.' + config.systemBodyItemPilots
         });
 
         // system "effect" popover ------------------------------------------------------------------------------------
@@ -2570,7 +2634,6 @@ define([
 
                 effectElement.addSystemEffectTooltip(security, effect, {
                     trigger: 'manual',
-                    placement: 'right'
                 }).setPopoverSmall().popover('show');
             },
             out: function(e){
@@ -2583,7 +2646,7 @@ define([
         // -> event delegation to system elements, popup only if needed (hover)
         MapUtil.initWormholeInfoTooltip(
             mapContainer,
-            '.' + config.systemHeadInfoClass + ' span[class^="pf-system-sec-"]',
+            '.' + config.systemClass + ' span[class^="pf-system-sec-"]',
             {placement: 'right', smaller: true}
         );
 
@@ -2673,6 +2736,15 @@ define([
                     notificationText = 'enabled';
                 }
 
+                // redraw systems to reflect new view mode (compact or normal) instantly
+                if(mapOption.option === 'mapCompact') {
+                    let currentMapUserData = Util.getCurrentMapUserData( this.mapContainer.data('id'));
+                    if(currentMapUserData){
+                        console.log('redraw!');
+                        updateUserData(this.mapContainer, currentMapUserData).then();
+                    }
+                }
+
                 if(this.data.toggle){
                     Util.showNotify({title: this.mapOption.description, text: notificationText, type: 'info'});
                 }
@@ -2707,8 +2779,10 @@ define([
                 }
 
                 if(select){
-                    let mapWrapper = mapContainer.closest('.' + config.mapWrapperClass);
-                    Scrollbar.scrollToSystem(mapWrapper, MapUtil.getSystemPosition(system));
+                    // TODO: check if system is already visible. only scroll if out of bounds. Quickfix: never scroll
+                    //let mapWrapper = mapContainer.closest('.' + config.mapWrapperClass);
+                    //Scrollbar.scrollToSystem(mapWrapper, MapUtil.getSystemPosition(system));
+
                     // select system
                     MapUtil.showSystemInfo(map, system);
                 }
@@ -2829,7 +2903,18 @@ define([
                         alias = systemHeadNameElement.editable('getValue', true);
                     }
 
-                    systemInfo.push(alias );
+                    systemInfo.push(alias);
+                    break;
+                case 'tag':
+                    // get current system tag
+                    let systemHeadTagElement = $(this).find('.' + config.systemHeadTagClass);
+                    let tag = '';
+                    if(systemHeadTagElement.hasClass('editable')){
+                        // xEditable is initiated
+                        tag = systemHeadTagElement.editable('getValue', true);
+                    }
+
+                    systemInfo.push(tag);
                     break;
                 default:
                     systemInfo.push('bad system query');
@@ -3059,6 +3144,7 @@ define([
                 systemId: parseInt(system.data('systemId')),
                 name: system.data('name'),
                 alias: system.getSystemInfo(['alias']),
+                tag: system.getSystemInfo(['tag']),
                 effect: system.data('effect'),
                 type: {
                     id: system.data('typeId')
@@ -3114,9 +3200,6 @@ define([
                     .then(payload => MapUtil.visualizeMap(mapElement, 'show'))
                     .then(payload => MapUtil.zoomToDefaultScale(mapConfig.map))
                     .then(payload => MapUtil.scrollToDefaultPosition(mapConfig.map))
-                    .then(payload => {
-                        Util.showNotify({title: 'Map initialized', text: mapConfig.config.name  + ' - loaded', type: 'success'});
-                    })
                     .then(() => resolve(payload));
             }else{
                 // nothing to do here...

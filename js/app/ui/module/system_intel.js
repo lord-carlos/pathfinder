@@ -721,15 +721,15 @@ define([
                     rowData[0] = parseInt(rowData[0]);
                     // valid dScan result
                     if(structureTypeIds.indexOf( rowData[0] ) !== -1){
-                        dScanData.push({
-                            structureId: rowData[0],
+                            dScanData.push({
+                                structureId: rowData[0],
                             name: rowData[1],
-                            systemId: systemData.systemId
-                        });
+                                systemId: systemData.systemId
+                            });
+                        }
                     }
                 }
             }
-        }
 
         return dScanData;
     };

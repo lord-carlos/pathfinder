@@ -41,7 +41,6 @@ Issues should be reported in the [Issue](https://github.com/exodus4d/pathfinder/
   |-- [0755] export/        --> static data
       |-- csv/              --> *.csv used by /setup page
       |-- sql/              --> DB dump for import (eve_universe.sql.zip)
-  |-- [0755] favicon/       --> Favicons
   |-- [0777] history/       --> log files (map history logs) [optional]
   |-- [0755] js/            --> JS source files
       |-- app/              --> "PASTHFINDER" core files (not used for production)
@@ -53,6 +52,7 @@ Issues should be reported in the [Issue](https://github.com/exodus4d/pathfinder/
       |-- ...
   |-- [0755] public/        --> frontend source
       |-- css/              --> CSS dist/build folder (minified)
+      |-- favicon/          --> Favicons
       |-- fonts/            --> (icon)-Fonts
       |-- img/              --> images
       |-- js/               --> JS dist/build folder and source maps (minified, uglified)

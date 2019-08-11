@@ -362,17 +362,10 @@ $mapBubbleWidth:        30px;
         margin-right: 2px;
       }
 
-      .pf-system-head-counter{
-        display: inline-block;
-        text-align: right;
-        min-width: 8px;
-        margin-right: 1px;
-        color: $green;
-        cursor: help;
-
-        &:empty{
-          display: none;
-        }
+      .pf-system-head-tag{
+        cursor: -moz-grab;
+        cursor: -webkit-grab;
+        cursor: grab;
       }
 
       .pf-system-effect{
@@ -440,6 +433,14 @@ $mapBubbleWidth:        30px;
           style: dashed;
           color: $gray-light;
         }
+      }
+
+      .pf-system-body-pilots{
+        display: none; // triggered by compact layout
+      }
+
+      .pf-system-body-static{
+        display: none; // triggered by compact layout
       }
 
       .pf-system-body-item{
@@ -513,6 +514,10 @@ $mapBubbleWidth:        30px;
   .pf-system-locked{
 
     .pf-system-sec{
+      cursor: default !important;
+    }
+
+    .pf-system-head-tag{
       cursor: default !important;
     }
 

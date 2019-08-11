@@ -1,0 +1,65 @@
+version: '3'
+
+services:
+  web:
+    container_name: ${COMPOSE_PROJECT_NAME}_web
+    build: docker/nginx
+    restart: unless-stopped
+    depends_on:
+      - php
+    networks:
+      - net
+    ports:
+      - ${EXPOSE_PORT_HTTP}:80
+      - ${EXPOSE_PORT_HTTPS}:443
+    volumes:
+      - .:/var/www/html:cached
+
+  php:
+    container_name: ${COMPOSE_PROJECT_NAME}_php
+    build:
+      context: docker/php
+      args:
+        USER_ID: ${DOCKER_USER_ID}
+        PHP_ENV: ${PHP_ENV}
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+    networks:
+      - net
+    expose:
+      - 5555
+      - 8020
+      - 9000
+    volumes:
+      - ./docker/php/appenvconfig.ini:/var/www/html/conf/docker.ini:cached
+      - .:/var/www/html:cached
+
+  db:
+    container_name: ${COMPOSE_PROJECT_NAME}_db
+    build: docker/db
+    restart: unless-stopped
+    networks:
+      - net
+    expose:
+      - 3306
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    volumes:
+      - db:/var/lib/mysql:consistent
+
+  redis:
+    container_name: ${COMPOSE_PROJECT_NAME}_redis
+    build: docker/redis
+    restart: unless-stopped
+    networks:
+      - net
+    expose:
+      - 6379
+
+volumes:
+  db:
+
+networks:
+  net:

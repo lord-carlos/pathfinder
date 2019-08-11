@@ -41,6 +41,12 @@ class AppController extends Controller {
             $f3->set('getCharacterGrid', function($characters){
                 return ( ((12 / count($characters)) <= 3) ? 3 : (12 / count($characters)) );
             });
+
+            // warning if setup route is active
+            $routes = $f3->get( 'ROUTES' );
+            $setupRouteIsUnset = !array_key_exists('/setup', $routes);
+            $setupRouteIsRedirect = isset($routes['/setup'][1]['GET'][0]) && $routes['/setup'][1]['GET'][0] === get_class($this) . '->rerouteToMe';
+            $f3->set('setupRouteIsUnreachable', $setupRouteIsUnset || $setupRouteIsRedirect);
         }
 
         return $return;
@@ -71,6 +77,14 @@ class AppController extends Controller {
         $resource->register('image', 'pf-header-bg.jpg');
         $resource->register('image', 'landing/eve_sso_login_buttons_large_black.png');
         $resource->register('image', 'landing/eve_sso_login_buttons_large_black_hover.png');
+    }
+
+    /**
+     * show main login (index) page
+     * @param \Base $f3
+     */
+    public function rerouteToMe(\Base $f3) {
+        $f3->reroute(['login'], false);
     }
 
 }

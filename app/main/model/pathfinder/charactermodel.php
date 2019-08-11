@@ -60,7 +60,7 @@ class CharacterModel extends AbstractPathfinderModel {
         'KICKED'        => 'character is kicked',
         'BANNED'        => 'character is banned'
     ];
-    
+
     /**
      * enables change for "kicked" column
      * -> see kick();
@@ -294,7 +294,7 @@ class CharacterModel extends AbstractPathfinderModel {
         $currentCorporationId = (int)$this->get('corporationId', true);
 
         if($currentCorporationId !== $corporationId){
-             $this->resetAdminColumns();
+            $this->resetAdminColumns();
         }
 
         return $corporationId;

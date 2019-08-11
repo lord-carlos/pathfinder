@@ -2147,7 +2147,7 @@ define([
     let getSystemPilotsTable = users => {
         let table = '';
         if(users.length > 0){
-            let getRow = (statusClass, userName, shipName, shipTypeName, mass) => {
+            let getRow = (statusClass, userName, shipTypeName) => {
                 let row = '<tr>';
                 row += '<td class="text-right">';
                 row += '<small>';
@@ -2157,28 +2157,18 @@ define([
                 row += '<td>';
                 row += userName;
                 row += '</td>';
-                row += '<td>';
-                row += shipName;
-                row += '</td>';
                 row += '<td class="text-right txt-color txt-color-orangeLight">';
                 row += shipTypeName;
-                row += '</td>';
-                row += '<td class="text-right">';
-                row += mass;
                 row += '</td>';
                 row += '</tr>';
                 return row;
             };
 
-            let massAll = 0;
             table += '<table>';
             for(let user of users){
-                massAll += parseInt(user.log.ship.mass);
                 let statusClass = getStatusInfoForCharacter(user, 'class');
-                let mass = formatMassValue(user.log.ship.mass);
-                table += getRow(statusClass, user.name, user.log.ship.name, user.log.ship.typeName, mass);
+                table += getRow(statusClass, user.name, user.log.ship.typeName);
             }
-            table += getRow(null, '', '', '', formatMassValue(massAll));
             table += '</table>';
         }
 
@@ -2234,6 +2224,20 @@ define([
             secClass = Init.classes.systemSecurity[sec]['class'];
         }
         return secClass;
+    };
+
+    /**
+     * get a css class for the name depending on available space
+     * @param locked
+     * @param effect
+     * @returns {string}
+     */
+    let getNameClassForSystem = (locked, effect) => {
+        // if the system is locked and has an effect -> shorten the name. if neither is the case -> extend it
+        let nameClass = locked && effect ? 'pf-system-head-name-short' : '';
+        nameClass = !locked && !effect ? 'pf-system-head-name-long' : nameClass;
+
+        return nameClass;
     };
 
     /**
@@ -3266,6 +3270,7 @@ define([
         getSystemsInfoTable: getSystemsInfoTable,
         getStatusInfoForCharacter: getStatusInfoForCharacter,
         getSecurityClassForSystem: getSecurityClassForSystem,
+        getNameClassForSystem: getNameClassForSystem,
         getTrueSecClassForSystem: getTrueSecClassForSystem,
         getStatusInfoForSystem: getStatusInfoForSystem,
         getSignatureGroupOptions: getSignatureGroupOptions,

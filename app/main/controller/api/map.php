@@ -11,6 +11,7 @@ namespace Controller\Api;
 use Controller;
 use data\file\FileHandler;
 use lib\Config;
+use lib\SystemTag;
 use Model\AbstractModel;
 use Model\Pathfinder;
 use Model\Universe;
@@ -768,7 +769,7 @@ class Map extends Controller\AccessController {
                         foreach($systems as $i => $systemData){
                             // check if current system belongs to the current map
                             if($system = $map->getSystemById((int)$systemData['id'])){
-                                $system->copyfrom($systemData, ['alias', 'status', 'position', 'locked', 'rallyUpdated', 'rallyPoke']);
+                                $system->copyfrom($systemData, ['alias', 'tag', 'status', 'position', 'locked', 'rallyUpdated', 'rallyPoke']);
                                 if($system->save($character)){
                                     if(!in_array($map->_id, $mapIdsChanged)){
                                         $mapIdsChanged[] = $map->_id;
@@ -961,8 +962,10 @@ class Map extends Controller\AccessController {
                 $sameSystem = false;
 
                 // system coordinates for system tha might be added next
-                $systemOffsetX = 130;
+                $systemOffsetX = 140;
                 $systemOffsetY = 0;
+            $systemDeclutterX = 0;
+            $systemDeclutterY = 40;
                 $systemPosX = 0;
                 $systemPosY = 30;
 
@@ -1086,6 +1089,24 @@ class Map extends Controller\AccessController {
                         $targetSystem &&
                         !$targetExists
                     ){
+                        // don't position new system over an existing system
+                        $tries = 0;
+                        do {
+                            $tries++;
+                            $modified = false;
+                            foreach($map->getSystemsData() as $system) {
+                                // do we have a system with the same X and Y position on this map?
+                                if($system->position->x === $systemPosX && $system->position->y === $systemPosY) {
+                                    // yes -> move and restart check
+                                    $systemPosX += $systemDeclutterX;
+                                    $systemPosY += $systemDeclutterY;
+                                    $modified = true;
+                                    break;
+                                }
+                            }
+                        } while ($tries < 10 && $modified);
+
+                        $targetSystem->tag = SystemTag::generateFor($targetSystem, $sourceSystem, $map);
                         $targetSystem = $map->saveSystem($targetSystem, $character, $systemPosX, $systemPosY);
                         // get updated maps object
                         if($targetSystem){
