@@ -6,9 +6,8 @@ define([
     'jquery',
     'app/init',
     'app/util',
-    'app/render',
     'bootbox'
-], function($, Init, Util, Render, bootbox){
+], ($, Init, Util, bootbox) => {
     'use strict';
 
     let config = {
@@ -55,6 +54,7 @@ define([
                 formErrorContainerClass: Util.config.formErrorContainerClass,
                 ccpImageServer: Init.url.ccpImageServer,
                 roleLabel: Util.getLabelByRole(Util.getObjVal(Util.getCurrentUserData(), 'character.role')).prop('outerHTML'),
+                characterAutoLocationSelectEnabled: Boolean(Util.getObjVal(Init, 'character.autoLocationSelect'))
             };
 
             let content = Mustache.render(template, data);
@@ -129,10 +129,9 @@ define([
                                         Util.showNotify({title: 'Account saved', type: 'success'});
 
                                         // close dialog/menu
-                                        $(document).trigger('pf:closeMenu', [{}]);
+                                        Util.triggerMenuAction(document, 'Close');
                                         accountSettingsDialog.modal('hide');
                                     }
-
                                 }).fail(function(jqXHR, status, error){
                                     accountSettingsDialog.find('.modal-content').hideLoadingAnimation();
 

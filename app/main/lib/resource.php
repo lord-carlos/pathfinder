@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: exodu
+ * User: Exodus 4D
  * Date: 08.09.2018
  * Time: 10:58
  */
@@ -24,6 +24,7 @@ class Resource extends \Prefab {
         'style'     => 'style',
         'script'    => 'script',
         'font'      => 'font',
+        'document'  => 'document',
         'image'     => 'image'
     ];
 
@@ -49,6 +50,7 @@ class Resource extends \Prefab {
         'style'     => '',
         'script'    => '',
         'font'      => '',
+        'document'  => '',
         'image'     => ''
     ];
 
@@ -60,6 +62,7 @@ class Resource extends \Prefab {
     private $fileExt = [
         'style'     => 'css',
         'script'    => 'js',
+        'document'  => 'html',
         'font'      => 'woff2'
     ];
 

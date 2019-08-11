@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: exodu
+ * User: Exodus 4D
  * Date: 22.09.2017
  * Time: 16:50
  */
@@ -10,7 +10,7 @@ namespace lib\logging;
 
 use lib\Config;
 
-class RallyLog extends AbstractCharacterLog{
+class RallyLog extends AbstractCharacterLog {
 
     /**
      * List of possible handlers (tested)
@@ -72,7 +72,7 @@ class RallyLog extends AbstractCharacterLog{
         }
 
         // add human readable changes to string ---------------------------------------------------
-        $data['formatted'] =$this->formatData($data);
+        $data['formatted'] = $this->formatData($data);
 
         return $data;
     }
@@ -89,10 +89,10 @@ class RallyLog extends AbstractCharacterLog{
             !empty($data['channel'])
         ){
             $replace = [
-                '{objName}' => $data['object']['objName'],
-                '{objId}' => $data['object']['objId'],
+                '{objName}'     => $data['object']['objName'],
+                '{objId}'       => $data['object']['objId'],
                 '{channelName}' => $data['channel']['channelName'],
-                '{channelId}' => $data['channel']['channelId']
+                '{channelId}'   => $data['channel']['channelId']
             ];
             $string = str_replace(array_keys($replace), array_values($replace), $this->getMessage());
         }

@@ -39,7 +39,7 @@ define([
         // description field
         descriptionAreaClass: 'pf-system-info-description-area',                // class for "description" area
         addDescriptionButtonClass: 'pf-system-info-description-button',         // class for "add description" button
-        descriptionTextareaElementClass: 'pf-system-info-description',          // class for "description" textarea element (xEditable)
+        descriptionTextareaElementClass: 'pf-system-info-description',          // class for "description" textarea element (Summernote)
 
         // fonts
         fontTriglivianClass: 'pf-triglivian',                                   // class for "Triglivian" names (e.g. Abyssal systems)
@@ -143,7 +143,6 @@ define([
         ){
             for(let wormholeName of systemData.statics){
                 let wormholeData = Object.assign({}, Init.wormholes[wormholeName]);
-                wormholeData.class = Util.getSecurityClassForSystem(wormholeData.security);
                 staticsData.push(wormholeData);
             }
         }
@@ -177,6 +176,7 @@ define([
             descriptionAreaClass: config.descriptionAreaClass,
             descriptionButtonClass: config.addDescriptionButtonClass,
             descriptionTextareaClass: config.descriptionTextareaElementClass,
+            summernoteClass: Util.config.summernoteClass,
             systemNameClass: () => {
                 return (val, render) => {
                     return  render(val) === 'A' ? config.fontTriglivianClass : '';
@@ -298,7 +298,7 @@ define([
                     },
                     callbacks: {
                         onInit: function(context){
-                            // make editable field a big larger
+                            // make editable field a bit larger
                             context.editable.css('height', '150px');
 
                             // set default background color
@@ -342,7 +342,7 @@ define([
                 let mapUrl = $(this).attr('data-url');
                 Util.copyToClipboard(mapUrl).then(payload => {
                     if(payload.data){
-                        Util.showNotify({title: 'Copied to clipbaord', text: mapUrl, type: 'success'});
+                        Util.showNotify({title: 'Copied to clipboard', text: mapUrl, type: 'success'});
                     }
                 });
             });

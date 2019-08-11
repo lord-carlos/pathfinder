@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: exodu
+ * User: Exodus 4D
  * Date: 18.05.2018
  * Time: 23:52
  */
@@ -10,7 +10,7 @@ namespace Model\Universe;
 
 use DB\SQL\Schema;
 
-class StarModel extends BasicUniverseModel {
+class StarModel extends AbstractUniverseModel {
 
     protected $table = 'star';
 
@@ -80,7 +80,7 @@ class StarModel extends BasicUniverseModel {
      * @param array $additionalOptions
      */
     protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
-        $data = self::getF3()->ccpClient->getUniverseStarData($id);
+        $data = self::getF3()->ccpClient()->getUniverseStarData($id);
         if(!empty($data)){
             /**
              * @var $type TypeModel

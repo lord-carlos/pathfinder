@@ -4,6 +4,7 @@
 define([
     'jquery',
     'app/init',
+    'app/console',
     'conf/system_effect',
     'conf/signature_type',
     'bootbox',
@@ -18,7 +19,7 @@ define([
     'bootstrapConfirmation',
     'bootstrapToggle',
     'select2'
-], ($, Init, SystemEffect, SignatureType, bootbox, localforage) => {
+], ($, Init, Con, SystemEffect, SignatureType, bootbox, localforage) => {
 
     'use strict';
 
@@ -37,7 +38,7 @@ define([
 
         // head
         headMapTrackingId: 'pf-head-map-tracking',                              // id for "map tracking" toggle (checkbox)
-        headCurrentLocationId: 'pf-head-current-location',                      // id for "show current location" element
+        headUserLocationId: 'pf-head-user-location',                            // id for "location" breadcrumb
 
         // menu
         menuButtonFullScreenId: 'pf-menu-button-fullscreen',                    // id for menu button "fullScreen"
@@ -82,6 +83,9 @@ define([
         popoverTriggerClass: 'pf-popover-trigger',                              // class for "popover" trigger elements
         popoverSmallClass: 'pf-popover-small',                                  // class for small "popover"
         popoverCharacterClass: 'pf-popover-character',                          // class for character "popover"
+
+        // Summernote
+        summernoteClass: 'pf-summernote',                                       // class for Summernote "WYSIWYG" elements
 
         // help
         helpDefaultClass: 'pf-help-default',                                    // class for "help" tooltip elements
@@ -395,7 +399,7 @@ define([
     };
 
     /**
-     * check multiple element if they arecurrently visible in viewport
+     * check multiple element if they are currently visible in viewport
      * @returns {Array}
      */
     $.fn.isInViewport = function(){
@@ -878,9 +882,7 @@ define([
     /**
      * show current program version information in browser console
      */
-    let showVersionInfo = () => {
-        console.info('PATHFINDER ' + getVersion());
-    };
+    let showVersionInfo = () => Con.showVersionInfo(getVersion());
 
     /**
      * polyfill for "passive" events
@@ -961,11 +963,35 @@ define([
      * init utility prototype functions
      */
     let initPrototypes = () => {
-        // Array diff
-        // [1,2,3,4,5,6].diff( [3,4,5] );
-        // => [1, 2, 6]
+
+        /**
+         * Array diff
+         * [1,2,3,4,5].diff([4,5,6]) => [1,2,3]
+         * @param a
+         * @returns {*[]}
+         */
         Array.prototype.diff = function(a){
-            return this.filter(function(i){return a.indexOf(i) < 0;});
+            return this.filter(i => !a.includes(i));
+        };
+
+        /**
+         * Array intersect
+         * [1,2,3,4,5].intersect([4,5,6]) => [4,5]
+         * @param a
+         * @returns {*[]}
+         */
+        Array.prototype.intersect = function(a){
+            return this.filter(i => a.includes(i));
+        };
+
+        /**
+         * compares two arrays if all elements in a are also in b
+         * element order is ignored
+         * @param a
+         * @returns {boolean}
+         */
+        Array.prototype.equalValues = function(a){
+            return this.diff(a).concat(a.diff(this)).length === 0;
         };
 
         /**
@@ -1042,6 +1068,10 @@ define([
 
                 if(editable.value === option.value){
                     data.selected = true;
+                }
+
+                if(option.disabled === true){
+                    data.disabled = true;
                 }
 
                 // optional "metaData" that belongs to this option
@@ -1226,12 +1256,14 @@ define([
     let initDefaultEditableConfig = () => {
         // use fontAwesome buttons template
         $.fn.editableform.buttons =
-            '<button type="submit" class="btn btn-primary btn-sm editable-submit">'+
-            '<i class="fa fa-fw fa-check"></i>'+
-            '</button>'+
+            '<div class="btn-group">'+
             '<button type="button" class="btn btn-default btn-sm editable-cancel">'+
             '<i class="fa fa-fw fa-times"></i>'+
-            '</button>';
+            '</button>' +
+            '<button type="submit" class="btn btn-success btn-sm editable-submit">'+
+            '<i class="fa fa-fw fa-check"></i>'+
+            '</button>'+
+            '</div>';
 
         // loading spinner template
         $.fn.editableform.loading =
@@ -1476,21 +1508,29 @@ define([
     };
 
     /**
-     * set currentUserData as "global" variable
-     * this function should be called continuously after data change
-     * to keep the data always up2data
+     * set currentUserData as "global" store var
+     * this function should be called whenever userData changed
      * @param userData
+     * @returns {boolean} true on success
      */
-    let setCurrentUserData = (userData) => {
-        Init.currentUserData = userData;
+    let setCurrentUserData = userData => {
+        let isSet = false;
 
-        // check if function is available
-        // this is not the case in "login" page
-        if( $.fn.updateHeaderUserData ){
-            $.fn.updateHeaderUserData();
+        // check if userData is valid
+        if(userData && userData.character && userData.characters){
+            let changes = compareUserData(getCurrentUserData(), userData);
+            // check if there is any change
+            if(Object.values(changes).some(val => val)){
+                $(document).trigger('pf:changedUserData', [userData, changes]);
+            }
+
+            Init.currentUserData = userData;
+            isSet = true;
+        }else{
+            console.error('Could not set userData %o. Missing or malformed obj', userData);
         }
 
-        return getCurrentUserData();
+        return isSet;
     };
 
     /**
@@ -1506,14 +1546,7 @@ define([
      * @returns {number}
      */
     let getCurrentCharacterId = () => {
-        let userData = getCurrentUserData();
-        let currentCharacterId = 0;
-        if(
-            userData &&
-            userData.character
-        ){
-            currentCharacterId = parseInt( userData.character.id );
-        }
+        let currentCharacterId = parseInt(getObjVal(getCurrentUserData(), 'character.id')) || 0;
 
         if(!currentCharacterId){
             // no active character... -> get default characterId from initial page load
@@ -1521,6 +1554,32 @@ define([
         }
 
         return currentCharacterId;
+    };
+
+    /**
+     * compares two userData objects for changes that are relevant
+     * @param oldUserData
+     * @param newUserData
+     * @returns {{characterShipType: *, charactersIds: boolean, characterLogLocation: *, characterSystemId: *, userId: *, characterId: *}}
+     */
+    let compareUserData = (oldUserData, newUserData) => {
+        let valueChanged = key => getObjVal(oldUserData, key) !== getObjVal(newUserData, key);
+
+        let oldCharactersIds = (getObjVal(oldUserData, 'characters') || []).map(data => data.id).sort();
+        let newCharactersIds = (getObjVal(newUserData, 'characters') || []).map(data => data.id).sort();
+
+        let oldHistoryLogStamps = (getObjVal(oldUserData, 'character.logHistory') || []).map(data => data.stamp).sort();
+        let newHistoryLogStamps = (getObjVal(newUserData, 'character.logHistory') || []).map(data => data.stamp).sort();
+
+        return {
+            userId: valueChanged('id'),
+            characterId: valueChanged('character.id'),
+            characterLogLocation: valueChanged('character.logLocation'),
+            characterSystemId: valueChanged('character.log.system.id'),
+            characterShipType: valueChanged('character.log.ship.typeId'),
+            charactersIds: oldCharactersIds.toString() !== newCharactersIds.toString(),
+            characterLogHistory: oldHistoryLogStamps.toString() !== newHistoryLogStamps.toString()
+        };
     };
 
     /**
@@ -1616,14 +1675,23 @@ define([
             }
             url += path;
 
-            $.ajax({
+            let ajaxOptions = {
                 type: action,
                 url: url,
-                data: JSON.stringify(data),
-                contentType: 'application/json; charset=utf-8',
-                dataType: 'json',
+                dataType: 'json',   // expected response dataType
                 context: context
-            }).done(function(response){
+            };
+
+            if(action === 'GET'){
+                // data as url params
+                ajaxOptions.data = data;
+            }else{
+                // json data in body
+                ajaxOptions.data = JSON.stringify(data);
+                ajaxOptions.contentType = 'application/json; charset=utf-8';
+            }
+
+            $.ajax(ajaxOptions).done(function(response){
                 payload.data = response;
                 payload.context = this;
                 resolve(payload);
@@ -1791,8 +1859,26 @@ define([
      * @param jqXHR XMLHttpRequest instance
      * @returns {boolean}
      */
-    let isXHRAborted = (jqXHR) => {
+    let isXHRAborted = jqXHR => {
         return !jqXHR.getAllResponseHeaders();
+    };
+
+    /**
+     * trigger global menu action 'event' on dom 'element' with optional 'data'
+     * @param element
+     * @param action
+     * @param data
+     */
+    let triggerMenuAction = (element, action, data) => {
+        if(element){
+            if(typeof(action) === 'string' && action.length){
+                $(element).trigger('pf:menuAction', [action, data]);
+            }else{
+                console.error('Invalid action: %o', action);
+            }
+        }else{
+            console.error('Invalid element: %o', element);
+        }
     };
 
     /**
@@ -1800,7 +1886,7 @@ define([
      * @param role
      * @returns {*|jQuery|HTMLElement}
      */
-    let getLabelByRole = (role) => {
+    let getLabelByRole = role => {
         return $('<span>', {
             class: ['label', 'label-' + role.style].join(' '),
             text: role.label
@@ -1812,7 +1898,7 @@ define([
      * @param mapOverlay
      * @returns {jQuery}
      */
-    let getMapElementFromOverlay = (mapOverlay) => {
+    let getMapElementFromOverlay = mapOverlay => {
         return $(mapOverlay).parents('.' + config.mapWrapperClass).find('.' + config.mapClass);
     };
 
@@ -1842,21 +1928,20 @@ define([
         let areaId = 0;
         switch(security){
             case 'H':
-                areaId = 10;
+                areaId = 30;
                 break;
             case 'L':
-                areaId = 11;
+                areaId = 31;
                 break;
             case '0.0':
-                areaId = 12;
+                areaId = 32;
                 break;
             case 'SH':
-            case 'C13':
                 areaId = 13;
                 break;
             default:
                 // w-space
-                for(let i = 1; i <= 6; i++){
+                for(let i = 1; i <= 18; i++){
                     if(security === 'C' + i){
                         areaId = i;
                         break;
@@ -2018,6 +2103,38 @@ define([
             }
             table += '</table>';
         }
+
+        return table;
+    };
+
+    /**
+     * get a HTML table with universe region information
+     * e.g. for popover
+     * @param regionName
+     * @param faction
+     * @returns {string}
+     */
+    let getSystemRegionTable = (regionName, faction) => {
+        let table = '<table>';
+        table += '<tr>';
+        table += '<td>';
+        table += 'Region';
+        table += '</td>';
+        table += '<td class="text-right">';
+        table += regionName;
+        table += '</td>';
+        table += '</tr>';
+        table += '<tr>';
+        if(faction){
+            table += '<td>';
+            table += 'Faction';
+            table += '</td>';
+            table += '<td class="text-right">';
+            table += faction.name;
+            table += '</td>';
+            table += '</tr>';
+        }
+        table += '</table>';
 
         return table;
     };
@@ -2211,32 +2328,6 @@ define([
     };
 
     /**
-     * get the typeID of a signature name
-     * @param systemData
-     * @param sigGroupId
-     * @param name
-     * @returns {number}
-     */
-    let getSignatureTypeIdByName = (systemData, sigGroupId, name) => {
-        let signatureTypeId = 0;
-        let areaId = getAreaIdBySecurity(systemData.security);
-        if(areaId > 0){
-            let signatureNames = getAllSignatureNames(systemData.type.id, areaId, sigGroupId);
-            name = name.toLowerCase();
-            for(let prop in signatureNames){
-                if(
-                    signatureNames.hasOwnProperty(prop) &&
-                    signatureNames[prop].toLowerCase() === name
-                ){
-                    signatureTypeId = parseInt(prop);
-                    break;
-                }
-            }
-        }
-        return signatureTypeId;
-    };
-
-    /**
      * get array key that points to map data catching mapId
      * @param data
      * @param mapId
@@ -2244,7 +2335,7 @@ define([
      */
     let getDataIndexByMapId = (data, mapId) => {
         let index = false;
-        if( Array.isArray(data) && mapId === parseInt(mapId, 10) ){
+        if(Array.isArray(data) && mapId === parseInt(mapId, 10)){
             for(let i = 0; i < data.length; i++){
                 if(data[i].config.id === mapId){
                     index = i;
@@ -2308,9 +2399,7 @@ define([
      * @param mapId
      * @returns {boolean|int}
      */
-    let getCurrentMapUserDataIndex = mapId => {
-        return getDataIndexByMapId(Init.currentMapUserData, mapId);
-    };
+    let getCurrentMapUserDataIndex = mapId => getDataIndexByMapId(Init.currentMapUserData, mapId);
 
     /**
      * update cached mapUserData for a single map
@@ -2353,17 +2442,13 @@ define([
     let getCurrentMapData = mapId => {
         let currentMapData = false;
 
-        if( mapId === parseInt(mapId, 10) ){
-            // search for a specific map
-            for(let i = 0; i < Init.currentMapData.length; i++){
-                if(Init.currentMapData[i].config.id === mapId){
-                    currentMapData = Init.currentMapData[i];
-                    break;
-                }
+        if(Init.currentMapData){
+            if(mapId === parseInt(mapId, 10)){
+                currentMapData = Init.currentMapData.find(mapData => mapData.config.id === mapId);
+            }else{
+                // get data for all maps
+                currentMapData = Init.currentMapData;
             }
-        }else{
-            // get data for all maps
-            currentMapData = Init.currentMapData;
         }
 
         return currentMapData;
@@ -2383,7 +2468,7 @@ define([
      * @param mapData
      */
     let updateCurrentMapData = mapData => {
-        let mapDataIndex = getCurrentMapDataIndex( mapData.config.id );
+        let mapDataIndex = getCurrentMapDataIndex(mapData.config.id);
 
         if(mapDataIndex !== false){
             Init.currentMapData[mapDataIndex].config = mapData.config;
@@ -2402,8 +2487,8 @@ define([
     let filterCurrentMapData = (path, value) => {
         let currentMapData = getCurrentMapData();
         if(currentMapData){
-            currentMapData = currentMapData.filter((mapData) => {
-                return (getObjVal(mapData, path) === value);
+            currentMapData = currentMapData.filter(mapData => {
+                return getObjVal(mapData, path) === value;
             });
         }
         return currentMapData;
@@ -2414,7 +2499,7 @@ define([
      * @param mapId
      */
     let deleteCurrentMapData = mapId => {
-        Init.currentMapData = Init.currentMapData.filter((mapData) => {
+        Init.currentMapData = Init.currentMapData.filter(mapData => {
             return (mapData.config.id !== mapId);
         });
     };
@@ -2423,20 +2508,7 @@ define([
      * get the current log data for the current user character
      * @returns {boolean}
      */
-    let getCurrentCharacterLog = () => {
-        let characterLog = false;
-        let currentUserData = getCurrentUserData();
-
-        if(
-            currentUserData &&
-            currentUserData.character &&
-            currentUserData.character.log
-        ){
-            characterLog = currentUserData.character.log;
-        }
-
-        return characterLog;
-    };
+    let getCurrentCharacterLog = () => getObjVal(getCurrentUserData(), 'character.log') || false;
 
     /**
      * get information for the current mail user
@@ -2777,10 +2849,10 @@ define([
      * @returns {{id: *, name: *}}
      */
     let getCurrentLocationData = () => {
-        let currentLocationLink = $('#' + config.headCurrentLocationId).find('a');
+        let breadcrumbElement = $('#' + config.headUserLocationId + '>li:last-of-type');
         return {
-            id: currentLocationLink.data('systemId'),
-            name: currentLocationLink.data('systemName')
+            id: parseInt(breadcrumbElement.attr('data-systemId')) || 0,
+            name: breadcrumbElement.attr('data-systemName') || false
         };
     };
 
@@ -2899,7 +2971,7 @@ define([
     };
 
     /**
-     * check an element for attached event by name
+     * check an element for attached jQuery event by name
      * -> e.g. eventName = 'click.myNamespace'
      * @param element
      * @param eventName
@@ -2907,22 +2979,25 @@ define([
      */
     let hasEvent = (element, eventName) => {
         let exists = false;
-        let parts = eventName.split('.');
-        let name =  parts[0];
-        let namespace = parts.length === 2 ? parts[1] : false;
-        let events = $._data( element[0], 'events')[name];
-        if(events){
-            if(namespace){
-                // seach events by namespace
-                for(let event of events){
-                    if(event.namespace === namespace){
-                        exists = true;
-                        break;
+        let allEvents = $._data(element[0], 'events');
+        if(allEvents){
+            let parts = eventName.split('.');
+            let name =  parts[0];
+            let events = allEvents[name];
+            if(events){
+                let namespace = parts.length === 2 ? parts[1] : false;
+                if(namespace){
+                    // search events by namespace
+                    for(let event of events){
+                        if(event.namespace === namespace){
+                            exists = true;
+                            break;
+                        }
                     }
+                }else{
+                    // at least ONE event of the given name found
+                    exists = true;
                 }
-            }else{
-                // at least ONE event of the given name found
-                exists = true;
             }
         }
         return exists;
@@ -3011,6 +3086,25 @@ define([
         let doc = new DOMParser().parseFromString(html, 'text/html');
         return Array.from(doc.body.childNodes).some(node => node.nodeType === 1);
     };
+
+    /**
+     * checks if a given object is a DOM element
+     * @param obj
+     * @returns {boolean}
+     */
+    let isDomElement = obj => !!(obj && obj.nodeType === 1);
+
+    /**
+     * converts array of objects into object with properties
+     * @param array
+     * @param keyField
+     * @returns {*}
+     */
+    let arrayToObject = (array, keyField = 'id') =>
+        array.reduce((obj, item) => {
+            obj[item[keyField]] = item;
+            return obj;
+        }, {});
 
     /**
      * get deep json object value if exists
@@ -3160,12 +3254,14 @@ define([
         setSyncStatus: setSyncStatus,
         getSyncType: getSyncType,
         isXHRAborted: isXHRAborted,
+        triggerMenuAction: triggerMenuAction,
         getLabelByRole: getLabelByRole,
         getMapElementFromOverlay: getMapElementFromOverlay,
         getMapModule: getMapModule,
         getSystemEffectData: getSystemEffectData,
         getSystemEffectTable: getSystemEffectTable,
         getSystemPlanetsTable: getSystemPlanetsTable,
+        getSystemRegionTable: getSystemRegionTable,
         getSystemPilotsTable: getSystemPilotsTable,
         getSystemsInfoTable: getSystemsInfoTable,
         getStatusInfoForCharacter: getStatusInfoForCharacter,
@@ -3174,7 +3270,6 @@ define([
         getStatusInfoForSystem: getStatusInfoForSystem,
         getSignatureGroupOptions: getSignatureGroupOptions,
         getAllSignatureNames: getAllSignatureNames,
-        getSignatureTypeIdByName: getSignatureTypeIdByName,
         getAreaIdBySecurity: getAreaIdBySecurity,
         setCurrentMapUserData: setCurrentMapUserData,
         getCurrentMapUserData: getCurrentMapUserData,
@@ -3216,6 +3311,8 @@ define([
         htmlEncode: htmlEncode,
         htmlDecode: htmlDecode,
         isValidHtml: isValidHtml,
+        isDomElement: isDomElement,
+        arrayToObject: arrayToObject,
         getObjVal: getObjVal,
         redirect: redirect,
         logout: logout,

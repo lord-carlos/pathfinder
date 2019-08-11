@@ -10,10 +10,16 @@ namespace Model\Universe;
 
 use DB\SQL\Schema;
 
-class ConstellationModel extends BasicUniverseModel {
+class ConstellationModel extends AbstractUniverseModel {
 
+    /**
+     * @var string
+     */
     protected $table = 'constellation';
 
+    /**
+     * @var array
+     */
     protected $fieldConf = [
         'name' => [
             'type' => Schema::DT_VARCHAR128,
@@ -86,7 +92,7 @@ class ConstellationModel extends BasicUniverseModel {
      * @param array $additionalOptions
      */
     protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
-        $data = self::getF3()->ccpClient->getUniverseConstellationData($id);
+        $data = self::getF3()->ccpClient()->getUniverseConstellationData($id);
         if(!empty($data)){
             /**
              * @var $region RegionModel
@@ -105,7 +111,7 @@ class ConstellationModel extends BasicUniverseModel {
      */
     public function loadSystemsData(){
         if( !$this->dry() ){
-            $data = self::getF3()->ccpClient->getUniverseConstellationData($this->_id);
+            $data = self::getF3()->ccpClient()->getUniverseConstellationData($this->_id);
             if(!empty($data)){
                 foreach((array)$data['systems'] as $systemId){
                     /**

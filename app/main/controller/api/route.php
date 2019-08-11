@@ -11,7 +11,7 @@ namespace Controller\Api;
 use Controller;
 use Controller\Ccp\Universe;
 use lib\Config;
-use Model;
+use Model\Pathfinder;
 
 /**
  * Routes controller
@@ -20,6 +20,9 @@ use Model;
  */
 class Route extends Controller\AccessController {
 
+    /**
+     * route search depth
+     */
     const ROUTE_SEARCH_DEPTH_DEFAULT = 1;
 
     /**
@@ -92,6 +95,9 @@ class Route extends Controller\AccessController {
         $rows = $this->getDB()->exec($query, null, $this->staticJumpDataCacheTime);
 
         if(count($rows) > 0){
+            array_walk($rows, function(&$row){
+                $row['jumpNodes'] = array_map('intval', explode(':', $row['jumpNodes']));
+            });
             $this->updateJumpData($rows);
         }
     }
@@ -118,6 +124,8 @@ class Route extends Controller\AccessController {
             $includeTypes = [];
             $excludeTypes = [];
             $includeEOL = true;
+
+            $excludeEndpointTypes = [];
 
             if( $filterData['stargates'] === true){
                 // include "stargates" for search
@@ -146,13 +154,17 @@ class Route extends Controller\AccessController {
                     $includeTypes[] = 'wh_critical';
                 }
 
-                if( $filterData['wormholesFrigate'] !== true ){
-                    $excludeTypes[] = 'frigate';
-                }
-
                 if( $filterData['wormholesEOL'] === false ){
                     $includeEOL = false;
                 }
+
+                if(!empty($filterData['excludeTypes'])){
+                    $excludeTypes = $filterData['excludeTypes'];
+                }
+            }
+
+            if( $filterData['endpointsBubble'] !== true ){
+                $excludeEndpointTypes[] = 'bubble';
             }
 
             // search connections -------------------------------------------------------------------------------------
@@ -172,58 +184,70 @@ class Route extends Controller\AccessController {
                     $whereQuery .= " `connection`.`eolUpdated` IS NULL AND ";
                 }
 
-                $query = "SELECT
-                        `system_src`.`systemId` systemId,
-                        (
-                          SELECT
-                            GROUP_CONCAT( NULLIF(`system_tar`.`systemId`, NULL) SEPARATOR ':')
+                if( !empty($excludeEndpointTypes) ){
+                    $whereQuery .= " CONCAT_WS(' ', `connection`.`sourceEndpointType`, `connection`.`targetEndpointType`) ";
+                    $whereQuery .= " NOT REGEXP '" . implode("|", $excludeEndpointTypes) . "' AND ";
+                }
+
+                $query = "SELECT 
+                            `system_src`.`systemId` systemSourceId,
+                            `system_tar`.`systemId` systemTargetId
                           FROM
                             `connection` INNER JOIN
-                            `system` system_tar ON
-                              `system_tar`.`id` = `connection`.`source` OR
-                              `system_tar`.`id` = `connection`.`target`
+                            `map` ON
+                              `map`.`id` = `connection`.`mapId` AND 
+                              `map`.`active` = 1 INNER JOIN
+                            `system` `system_src` ON 
+                              `system_src`.`id` = `connection`.`source` AND
+                              `system_src`.`active` = 1 INNER JOIN
+                            `system` `system_tar` ON 
+                              `system_tar`.`id` = `connection`.`target` AND
+                              `system_tar`.`active` = 1
                           WHERE
-                            `connection`.`mapId` " . $whereMapIdsQuery . " AND
-                            `connection`.`active` = 1 AND
-                            (
-                              `connection`.`source` = `system_src`.`id` OR
-                              `connection`.`target` = `system_src`.`id`
-                            ) AND
-                            " . $whereQuery . "
-                            `system_tar`.`id` != `system_src`.`id` AND
-                            `system_tar`.`active` = 1
-                        ) jumpNodes
-                    FROM
-                        `system` `system_src` INNER JOIN
-                        `map` ON
-                          `map`.`id` = `system_src`.`mapId`
-                    WHERE
-                        `system_src`.`mapId` " . $whereMapIdsQuery . " AND
-                        `system_src`.`active` = 1 AND
-                        `map`.`active` = 1
-                    HAVING
-                        -- skip systems without neighbors (e.g. WHs)
-	                    jumpNodes IS NOT NULL
-                ";
+                              " . $whereQuery . "
+                              `connection`.`active` = 1 AND 
+                              `connection`.`mapId` " . $whereMapIdsQuery . "
+                              ";
 
                 $rows = $this->getDB()->exec($query,  null, $this->dynamicJumpDataCacheTime);
 
                 if(count($rows) > 0){
-                    // enrich $row data with static system data (from universe DB)
+                    $jumpData = [];
                     $universe = new Universe();
-                    for($i = 0; $i < count($rows); $i++){
-                        if($staticData = $universe->getSystemData($rows[$i]['systemId'])){
-                            $rows[$i]['systemName'] = $staticData->name;
-                            $rows[$i]['constellationId'] = $staticData->constellation->id;
-                            $rows[$i]['regionId'] = $staticData->constellation->region->id;
-                            $rows[$i]['trueSec'] = $staticData->trueSec;
+
+                    /**
+                     * enrich dynamic jump data with static system data (from universe DB)
+                     * @param array $row
+                     * @param string $systemSourceKey
+                     * @param string $systemTargetKey
+                     */
+                    $enrichJumpData = function(array &$row, string $systemSourceKey, string $systemTargetKey) use (&$jumpData, &$universe) {
+                        if(
+                            !array_key_exists($row[$systemSourceKey], $jumpData) &&
+                            !is_null($staticData = $universe->getSystemData($row[$systemSourceKey]))
+                        ){
+                            $jumpData[$row[$systemSourceKey]] = [
+                                'systemId' => (int)$row[$systemSourceKey],
+                                'systemName' => $staticData->name,
+                                'constellationId' => $staticData->constellation->id,
+                                'regionId' => $staticData->constellation->region->id,
+                                'trueSec' => $staticData->trueSec,
+                            ];
                         }
+
+                        if( !in_array($row[$systemTargetKey], (array)$jumpData[$row[$systemSourceKey]]['jumpNodes']) ){
+                            $jumpData[$row[$systemSourceKey]]['jumpNodes'][] = (int)$row[$systemTargetKey];
+                        }
+                    };
+
+                    for($i = 0; $i < count($rows); $i++){
+                        $enrichJumpData($rows[$i],  'systemSourceId', 'systemTargetId');
+                        $enrichJumpData($rows[$i],  'systemTargetId', 'systemSourceId');
                     }
 
                     // update jump data for this instance
-                    $this->updateJumpData($rows);
+                    $this->updateJumpData($jumpData);
                 }
-
             }
         }
     }
@@ -259,7 +283,7 @@ class Route extends Controller\AccessController {
             if( !is_array($this->jumpArray[$systemId]) ){
                 $this->jumpArray[$systemId] = [];
             }
-            $this->jumpArray[$systemId] = array_merge(array_map('intval', explode(':', $row['jumpNodes'])), $this->jumpArray[$systemId]);
+            $this->jumpArray[$systemId] = array_merge($row['jumpNodes'], $this->jumpArray[$systemId]);
 
             // add systemName to end (if not already there)
             if(end($this->jumpArray[$systemId]) != $systemName){
@@ -276,7 +300,7 @@ class Route extends Controller\AccessController {
     private function filterJumpData($filterData = [], $keepSystems = []){
         if($filterData['flag'] == 'secure'){
             // remove all systems (TrueSec < 0.5) from search arrays
-            $this->jumpArray = array_filter($this->jumpArray, function($systemId) use($keepSystems) {
+            $this->jumpArray = array_filter($this->jumpArray, function($systemId) use ($keepSystems) {
                 $systemNameData = $this->nameArray[$systemId];
                 $systemSec = $systemNameData[3];
 
@@ -580,7 +604,7 @@ class Route extends Controller\AccessController {
                 'connections' => $connections
             ];
 
-            $result = $this->getF3()->ccpClient->getRouteData($systemFromId, $systemToId, $options);
+            $result = $this->getF3()->ccpClient()->getRouteData($systemFromId, $systemToId, $options);
 
             // format result ------------------------------------------------------------------------------------------
 
@@ -660,9 +684,9 @@ class Route extends Controller\AccessController {
             $validMaps = [];
 
             /**
-             * @var $map Model\MapModel
+             * @var $map Pathfinder\MapModel
              */
-            $map = Model\BasicModel::getNew('MapModel');
+            $map = Pathfinder\AbstractPathfinderModel::getNew('MapModel');
 
             // limit max search routes to max limit
             array_splice($routesData, Config::getPathfinderData('route.limit'));
@@ -676,7 +700,7 @@ class Route extends Controller\AccessController {
                 // check map access (filter requested mapIDs and format) ----------------------------------------------
                 array_walk($mapData, function(&$item, &$key, $data){
                     /**
-                     * @var Model\MapModel $data[0]
+                     * @var Pathfinder\MapModel $data[0]
                      */
                     if( isset($data[1][$key]) ){
                         // character has map access -> do not check again
@@ -704,22 +728,24 @@ class Route extends Controller\AccessController {
 
                 // search route with filter options
                 $filterData = [
-                    'stargates' => (bool) $routeData['stargates'],
-                    'jumpbridges' => (bool) $routeData['jumpbridges'],
-                    'wormholes' => (bool) $routeData['wormholes'],
-                    'wormholesReduced' => (bool) $routeData['wormholesReduced'],
-                    'wormholesCritical' => (bool) $routeData['wormholesCritical'],
-                    'wormholesFrigate' => (bool) $routeData['wormholesFrigate'],
-                    'wormholesEOL' => (bool) $routeData['wormholesEOL'],
-                    'flag' => $routeData['flag']
+                    'stargates'             => (bool) $routeData['stargates'],
+                    'jumpbridges'           => (bool) $routeData['jumpbridges'],
+                    'wormholes'             => (bool) $routeData['wormholes'],
+                    'wormholesReduced'      => (bool) $routeData['wormholesReduced'],
+                    'wormholesCritical'     => (bool) $routeData['wormholesCritical'],
+                    'wormholesEOL'          => (bool) $routeData['wormholesEOL'],
+                    'wormholesSizeMin'      => (string) $routeData['wormholesSizeMin'],
+                    'excludeTypes'          => (array) $routeData['excludeTypes'],
+                    'endpointsBubble'       => (bool) $routeData['endpointsBubble'],
+                    'flag'                  => $routeData['flag']
                 ];
 
                 $returnRoutData = [
-                    'systemFromData' => $routeData['systemFromData'],
-                    'systemToData' => $routeData['systemToData'],
-                    'skipSearch' => (bool) $routeData['skipSearch'],
-                    'maps' => $mapData,
-                    'mapIds' => $mapIds
+                    'systemFromData'        => $routeData['systemFromData'],
+                    'systemToData'          => $routeData['systemToData'],
+                    'skipSearch'            => (bool) $routeData['skipSearch'],
+                    'maps'                  => $mapData,
+                    'mapIds'                => $mapIds
                 ];
 
                 // add filter options for each route as well
@@ -729,10 +755,10 @@ class Route extends Controller\AccessController {
                     !$returnRoutData['skipSearch'] &&
                     count($mapIds) > 0
                 ){
-                    $systemFrom = $routeData['systemFromData']['name'];
-                    $systemFromId = (int)$routeData['systemFromData']['systemId'];
-                    $systemTo = $routeData['systemToData']['name'];
-                    $systemToId = (int)$routeData['systemToData']['systemId'];
+                    $systemFrom     = $routeData['systemFromData']['name'];
+                    $systemFromId   = (int)$routeData['systemFromData']['systemId'];
+                    $systemTo       = $routeData['systemToData']['name'];
+                    $systemToId     = (int)$routeData['systemToData']['systemId'];
 
                     $cacheKey = $this->getRouteCacheKey(
                         $mapIds,

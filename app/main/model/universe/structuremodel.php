@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: exodu
+ * User: Exodus 4D
  * Date: 14.10.2017
  * Time: 15:56
  */
@@ -11,7 +11,7 @@ namespace Model\Universe;
 use DB\SQL;
 use DB\SQL\Schema;
 
-class StructureModel extends BasicUniverseModel {
+class StructureModel extends AbstractUniverseModel {
 
     protected $table = 'structure';
 
@@ -77,7 +77,7 @@ class StructureModel extends BasicUniverseModel {
      * @param array $additionalOptions
      */
     protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
-        $data = self::getF3()->ccpClient->getUniverseStructureData($id, $accessToken, $additionalOptions);
+        $data = self::getF3()->ccpClient()->getUniverseStructureData($id, $accessToken);
         if(!empty($data)){
             /**
              * @var $type TypeModel
@@ -99,15 +99,14 @@ class StructureModel extends BasicUniverseModel {
      * @return bool
      * @throws \Exception
      */
-    public static function setup($db=null, $table=null, $fields=null){
-        if($status = parent::setup($db,$table,$fields)){
+    public static function setup($db = null, $table = null, $fields = null){
+        if($status = parent::setup($db, $table, $fields)){
             //change `id` column to BigInt
             $schema = new Schema($db);
             $typeQuery = $schema->findQuery($schema->dataTypes[Schema::DT_BIGINT]);
             $db->exec("ALTER TABLE " . $db->quotekey('structure') .
                 " MODIFY COLUMN " . $db->quotekey('id')  . " " . $typeQuery . " NOT NULL");
         }
-
         return $status;
     }
 

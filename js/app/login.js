@@ -10,14 +10,15 @@ define([
     'blueImpGallery',
     'bootbox',
     'lazyload',
-    'app/ui/header',
-    'app/ui/logo',
-    'app/ui/demo_map',
+    'layout/header_login',
+    'layout/logo',
+    'layout/demo_map',
     'dialog/account_settings',
     'dialog/notification',
     'dialog/manual',
     'dialog/changelog',
-    'dialog/credit'
+    'dialog/credit',
+    'dialog/api_status',
 ], ($, Init, Util, Render, Gallery, bootbox) => {
 
     'use strict';
@@ -69,6 +70,8 @@ define([
         stickyPanelClass: 'pf-landing-sticky-panel',                            // class for sticky panels
         stickyPanelServerId: 'pf-landing-server-panel',                         // id for EVE Online server status panel
         stickyPanelAdminId: 'pf-landing-admin-panel',                           // id for admin login panel
+
+        apiStatusTriggerClass: 'pf-api-status-trigger',                         // class for "api status" dialog trigger elements
 
         // animation
         animateElementClass: 'pf-animate-on-visible',                           // class for elements that will be animated to show
@@ -210,20 +213,6 @@ define([
                 .addClass('text-content')
                 .attr('imgTitle', obj.title);
 
-            let moduleConfig = {
-                name: obj.href, // template name
-                position: newSlideContent,
-                functions: {
-                    after: function(){
-                        // element inserted -> load complete
-                        callback({
-                            type: 'complete',
-                            target: newSlideContent[0]
-                        });
-                    }
-                }
-            };
-
             // render HTML file (template)
             let moduleData = {
                 id: config.headHeaderMapId,
@@ -233,7 +222,9 @@ define([
                 mapBgImageId: config.mapBgImageId
             };
 
-            Render.showModule(moduleConfig, moduleData);
+            Render.render(obj.href, moduleData)
+                .then(payload => newSlideContent.append(payload))
+                .then(payload => callback({type: 'complete', target: payload[0]}));
 
             return newSlideContent[0];
         };
@@ -463,30 +454,40 @@ define([
             dataType: 'json'
         }).done(function(responseData, textStatus, request){
 
-            if(responseData.hasOwnProperty('status')){
-                let data = responseData.status;
-                data.stickyPanelServerId = config.stickyPanelServerId;
-                data.stickyPanelClass = config.stickyPanelClass;
-
-                let statusClass = '';
-                switch(data.serviceStatus.toLowerCase()){
-                    case 'online': statusClass = 'txt-color-green'; break;
-                    case 'vip': statusClass = 'txt-color-orange'; break;
-                    case 'offline': statusClass = 'txt-color-redDarker'; break;
+            let data = {
+                stickyPanelServerId: config.stickyPanelServerId,
+                stickyPanelClass: config.stickyPanelClass,
+                apiStatusTriggerClass: config.apiStatusTriggerClass,
+                server: responseData.server,
+                api: responseData.api,
+                statusFormat: () => {
+                    return (val, render) => {
+                        switch(render(val)){
+                            case 'online':
+                            case 'green':   return 'txt-color-green';
+                            case 'vip':
+                            case 'yellow':  return 'txt-color-orange';
+                            case 'offline':
+                            case 'red':     return 'txt-color-red';
+                            default:        return '';
+                        }
+                    };
                 }
-                data.serviceStatus = {
-                    eve: data.serviceStatus,
-                    style: statusClass
-                };
+            };
 
-                requirejs(['text!templates/ui/server_panel.html', 'mustache'], function(template, Mustache){
-                    let content = Mustache.render(template, data);
-                    $('#' + config.headerId).prepend(content);
-                    $('#' + config.stickyPanelServerId).velocity('transition.slideLeftBigIn', {
-                        duration: 240
-                    });
+            requirejs(['text!templates/ui/server_panel.html', 'mustache'], function(template, Mustache){
+                let content = Mustache.render(template, data);
+                $('#' + config.headerId).prepend(content);
+                let stickyPanelServer = $('#' + config.stickyPanelServerId);
+                stickyPanelServer.velocity('transition.slideLeftBigIn', {
+                    duration: 240
                 });
-            }
+
+                // set observer for api status dialog
+                stickyPanelServer.on('click', '.' + config.apiStatusTriggerClass, function(){
+                    $.fn.apiStatusDialog(data.api);
+                });
+            });
 
         }).fail(handleAjaxErrorResponse);
     };
@@ -797,7 +798,7 @@ define([
         });
 
         // hide splash loading animation
-        $('.' + config.splashOverlayClass).hideSplashOverlay();
+        $('.' + config.splashOverlayClass + '[data-status="ok"]').hideSplashOverlay();
 
         // init server status information
         initServerStatus();

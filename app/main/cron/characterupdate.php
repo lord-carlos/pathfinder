@@ -7,9 +7,9 @@
  */
 
 namespace Cron;
-use DB;
-use Model;
 
+
+use Model\Pathfinder;
 
 class CharacterUpdate extends AbstractCron {
 
@@ -42,13 +42,12 @@ class CharacterUpdate extends AbstractCron {
      */
     function deleteLogData(\Base $f3){
         $this->setMaxExecutionTime();
-        DB\Database::instance()->getDB('PF');
         $logInactiveTime = $this->getCharacterLogInactiveTime($f3);
 
         /**
-         * @var $characterLogModel Model\CharacterLogModel
+         * @var $characterLogModel Pathfinder\CharacterLogModel
          */
-        $characterLogModel = Model\BasicModel::getNew('CharacterLogModel');
+        $characterLogModel = Pathfinder\AbstractPathfinderModel::getNew('CharacterLogModel');
 
         // find character logs that were not checked recently and update
         $characterLogs = $characterLogModel->find([
@@ -62,14 +61,18 @@ class CharacterUpdate extends AbstractCron {
         if(is_object($characterLogs)){
             foreach($characterLogs as $characterLog){
                 /**
-                 * @var $characterLog Model\CharacterLogModel
+                 * @var $characterLog Pathfinder\CharacterLogModel
                  */
                 if(is_object($characterLog->characterId)){
-                    // force characterLog as "updated" even if no changes were made
-                    $characterLog->characterId->updateLog([
-                        'markUpdated' =>  true,
-                        'suppressHTTPErrors' => true
-                    ]);
+                    if($accessToken = $characterLog->characterId->getAccessToken()){
+                        if($this->isOnline($accessToken)){
+                            // force characterLog as "updated" even if no changes were made
+                            $characterLog->touch('updated');
+                            $characterLog->save();
+                        }else{
+                            $characterLog->erase();
+                        }
+                    }
                 }else{
                     // character_log does not have a character assigned -> delete
                     $characterLog->erase();
@@ -86,12 +89,11 @@ class CharacterUpdate extends AbstractCron {
      */
     function cleanUpCharacterData(\Base $f3){
         $this->setMaxExecutionTime();
-        DB\Database::instance()->getDB('PF');
 
         /**
-         * @var $characterModel Model\CharacterModel
+         * @var $characterModel Pathfinder\CharacterModel
          */
-        $characterModel = Model\BasicModel::getNew('CharacterModel');
+        $characterModel = Pathfinder\AbstractPathfinderModel::getNew('CharacterModel');
 
         $characters = $characterModel->find([
             'active = :active AND TIMESTAMPDIFF(SECOND, kicked, NOW() ) > 0',
@@ -101,7 +103,7 @@ class CharacterUpdate extends AbstractCron {
         if(is_object($characters)){
             foreach($characters as $character){
                 /**
-                 * @var $character Model\CharacterModel
+                 * @var $character Pathfinder\CharacterModel
                  */
                 $character->kick();
                 $character->save();
@@ -118,12 +120,11 @@ class CharacterUpdate extends AbstractCron {
      */
     function deleteAuthenticationData(\Base $f3){
         $this->setMaxExecutionTime();
-        DB\Database::instance()->getDB('PF');
 
         /**
-         * @var $authenticationModel Model\CharacterAuthenticationModel
+         * @var $authenticationModel Pathfinder\CharacterAuthenticationModel
          */
-        $authenticationModel = Model\BasicModel::getNew('CharacterAuthenticationModel');
+        $authenticationModel = Pathfinder\AbstractPathfinderModel::getNew('CharacterAuthenticationModel');
 
         // find expired authentication data
         $authentications = $authenticationModel->find([

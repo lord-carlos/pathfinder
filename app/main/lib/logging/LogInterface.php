@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: exodu
+ * User: Exodus 4D
  * Date: 05.08.2017
  * Time: 14:10
  */
@@ -14,6 +14,8 @@ interface LogInterface {
     public function setMessage(string $message);
 
     public function setLevel(string $level);
+
+    public function setTag(string $tag);
 
     public function setData(array $data): LogInterface;
 
@@ -61,4 +63,5 @@ interface LogInterface {
 
     public function removeHandlerGroup(string $handlerKey);
 
+    public function buffer();
 }

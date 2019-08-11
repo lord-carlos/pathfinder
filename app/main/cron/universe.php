@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: exodu
+ * User: Exodus 4D
  * Date: 19.05.2018
  * Time: 03:46
  */
@@ -34,7 +34,7 @@ class Universe extends AbstractCron {
     }
 
     /**
-     * format Byte §size for output
+     * format Byte $size for output
      * @param int $size
      * @return string
      */
@@ -172,12 +172,12 @@ class Universe extends AbstractCron {
         $count = 0;
         $importCount = [];
         $modelClass = '';
-        $setupModel = function(Model\Universe\BasicUniverseModel &$model, int $id){};
+        $setupModel = function(Model\Universe\AbstractUniverseModel &$model, int $id){};
 
         switch($type){
             case 'system':
                 // load systems + dependencies (planets, star, types,...)
-                $ids = $f3->ccpClient->getUniverseSystems();
+                $ids = $f3->ccpClient()->getUniverseSystems();
                 $modelClass = 'SystemModel';
                 $setupModel = function(Model\Universe\SystemModel &$model, int $id){
                     $model->loadById($id);
@@ -186,7 +186,7 @@ class Universe extends AbstractCron {
                 break;
             case 'stargate':
                 // load all stargates. Systems must be present first!
-                $ids = $f3->ccpClient->getUniverseSystems();
+                $ids = $f3->ccpClient()->getUniverseSystems();
                 $modelClass = 'SystemModel';
                 $setupModel = function(Model\Universe\SystemModel &$model, int $id){
                     $model->loadById($id);
@@ -195,7 +195,7 @@ class Universe extends AbstractCron {
                 break;
             case 'index_system':
                 // setup system index, Systems must be present first!
-                $ids = $f3->ccpClient->getUniverseSystems();
+                $ids = $f3->ccpClient()->getUniverseSystems();
                 $modelClass = 'SystemModel';
                 $setupModel = function(Model\Universe\SystemModel &$model, int $id){
                     $model->getById($id); // no loadById() here! would take "forever" when system not exists and build up first...
@@ -223,7 +223,7 @@ class Universe extends AbstractCron {
             /**
              * @var $model Model\Universe\SystemModel
              */
-            $model = Model\Universe\BasicUniverseModel::getNew($modelClass);
+            $model = Model\Universe\AbstractUniverseModel::getNew($modelClass);
             foreach($ids as $id){
                 $timeLoopStart = microtime(true);
                 $this->echoLoading(++$count, $importCount, $id);
@@ -252,7 +252,7 @@ class Universe extends AbstractCron {
     function updateUniverseSystems(\Base $f3){
         $this->setMaxExecutionTime();
 
-        $system = Model\Universe\BasicUniverseModel::getNew('SystemModel');
+        $system = Model\Universe\AbstractUniverseModel::getNew('SystemModel');
         $systems = $system->find( null, ['order' => 'updated', 'limit' => 2]);
         if($systems){
             foreach ($systems as $system){

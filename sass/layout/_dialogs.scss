@@ -4,7 +4,7 @@
     font-family: $font-family-sans-serif;
     letter-spacing: 0;
     font-size: $font-size-h5;
-    margin: 20px 0;
+    margin: 20px 0 10px 0;
     line-height: normal;
   }
 
@@ -189,9 +189,20 @@
   position: relative;
   height: 700px;
   overflow: auto;
+
+  .list-unstyled.well{
+    display: inline-block;
+  }
 }
 
-// ad system dialog ===========================================================
+// add system dialog ==========================================================
+#pf-system-dialog{
+  .form-control-static.pf-dynamic-area{
+    padding: 7px;
+    min-height: 32px;
+  }
+}
+
 .pf-system-dialog-select{
   width: 300px !important;
 }
@@ -200,6 +211,12 @@
 #pf-task-dialog{
   .pf-task-dialog-status{
     min-height: inherit;
+  }
+
+  h4>small.pull-right{
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    margin-top: -5px;
   }
 }
 

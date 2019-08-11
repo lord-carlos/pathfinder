@@ -1,7 +1,7 @@
 <?php
 /**
  * Created by PhpStorm.
- * User: exodu
+ * User: Exodus 4D
  * Date: 04.08.2017
  * Time: 22:13
  */
@@ -116,7 +116,7 @@ abstract class AbstractLog implements LogInterface {
 
         // add custom log processor callback -> add "extra" (meta) data
         $f3 = $this->f3;
-        $processorExtraData = function($record) use(&$f3){
+        $processorExtraData = function($record) use (&$f3){
             $record['extra'] = [
                 'path' => $f3->get('PATH'),
                 'ip' => $f3->get('IP')
@@ -176,7 +176,7 @@ abstract class AbstractLog implements LogInterface {
      * @param array $data
      * @return LogInterface
      */
-    public function setData(array $data): LogInterface{
+    public function setData(array $data) : LogInterface{
         $this->data = $data;
         return $this;
     }
@@ -185,7 +185,7 @@ abstract class AbstractLog implements LogInterface {
      * @param array $data
      * @return LogInterface
      */
-    public function setTempData(array $data): LogInterface{
+    public function setTempData(array $data) : LogInterface{
         $this->tmpData = $data;
         return $this;
     }
@@ -198,7 +198,7 @@ abstract class AbstractLog implements LogInterface {
      * @param \stdClass|null $handlerParams
      * @return LogInterface
      */
-    public function addHandler(string $handlerKey, string $formatterKey = null, \stdClass $handlerParams = null): LogInterface{
+    public function addHandler(string $handlerKey, string $formatterKey = null, \stdClass $handlerParams = null) : LogInterface {
         if(!$this->hasHandlerKey($handlerKey)){
             $this->handlerConfig[$handlerKey] = $formatterKey;
             // add more configuration params for the new handler
@@ -214,7 +214,7 @@ abstract class AbstractLog implements LogInterface {
      * @param string $handlerKey
      * @return LogInterface
      */
-    public function addHandlerGroup(string $handlerKey): LogInterface{
+    public function addHandlerGroup(string $handlerKey) : LogInterface {
         if(
             $this->hasHandlerKey($handlerKey) &&
             !$this->hasHandlerGroupKey($handlerKey)
@@ -227,7 +227,7 @@ abstract class AbstractLog implements LogInterface {
     /**
      * @return array
      */
-    public function getHandlerConfig(): array{
+    public function getHandlerConfig() : array{
         return $this->handlerConfig;
     }
 
@@ -237,16 +237,16 @@ abstract class AbstractLog implements LogInterface {
      * @return array
      * @throws \Exception
      */
-    public function getHandlerParams(string $handlerKey): array{
+    public function getHandlerParams(string $handlerKey) : array {
         $params = [];
 
         if($this->hasHandlerKey($handlerKey)){
             switch($handlerKey){
                 case 'stream': $params = $this->getHandlerParamsStream();
                     break;
-                case 'zmq': $params = $this->getHandlerParamsZMQ();
-                    break;
                 case 'mail': $params = $this->getHandlerParamsMail();
+                    break;
+                case 'socket': $params = $this->getHandlerParamsSocket();
                     break;
                 case 'slackMap':
                 case 'slackRally':
@@ -267,69 +267,69 @@ abstract class AbstractLog implements LogInterface {
     /**
      * @return array
      */
-    public function getHandlerParamsConfig(): array{
+    public function getHandlerParamsConfig() : array {
         return $this->handlerParamsConfig;
     }
 
     /**
      * @return array
      */
-    public function getProcessorConfig(): array{
+    public function getProcessorConfig() : array {
         return $this->processorConfig;
     }
 
     /**
      * @return string
      */
-    public function getMessage(): string{
+    public function getMessage() : string{
         return $this->message;
     }
 
     /**
      * @return string
      */
-    public function getAction(): string{
+    public function getAction() : string{
         return $this->action;
     }
 
     /**
      * @return string
      */
-    public function getChannelType(): string{
+    public function getChannelType() : string{
         return $this->channelType;
     }
 
     /**
      * @return string
      */
-    public function getChannelName(): string{
+    public function getChannelName() : string{
         return $this->getChannelType();
     }
 
     /**
      * @return string
      */
-    public function getLevel(): string{
+    public function getLevel() : string{
         return $this->level;
     }
 
     /**
      * @return string
      */
-    public function getTag(): string{
+    public function getTag() : string{
         return $this->tag;
     }
 
     /**
      * @return array
      */
-    public function getData(): array{
+    public function getData() : array{
         return $this->data;
     }
     /**
      * @return array
      */
-    public function getContext(): array{
+    public function getContext() : array{
         $context = [
             'data' => $this->getData(),
             'tag' => $this->getTag()
@@ -344,14 +344,14 @@ abstract class AbstractLog implements LogInterface {
     /**
      * @return array
      */
-    protected function getTempData(): array {
+    protected function getTempData() : array {
         return $this->tmpData;
     }
 
     /**
      * @return array
      */
-    public function getHandlerGroups(): array{
+    public function getHandlerGroups() : array{
         return $this->handlerGroups;
     }
 
@@ -359,7 +359,7 @@ abstract class AbstractLog implements LogInterface {
      * get unique hash for this kind of logs (channel) and same $handlerGroups
      * @return string
      */
-    public function getGroupHash(): string {
+    public function getGroupHash() : string {
         $groupName = $this->getChannelName();
         if($this->isGrouped()){
             $groupName .= '_' . implode('_', $this->getHandlerGroups());
@@ -372,7 +372,7 @@ abstract class AbstractLog implements LogInterface {
      * @param string $handlerKey
      * @return bool
      */
-    public function hasHandlerKey(string $handlerKey): bool{
+    public function hasHandlerKey(string $handlerKey) : bool{
         return array_key_exists($handlerKey, $this->handlerConfig);
     }
 
@@ -380,21 +380,21 @@ abstract class AbstractLog implements LogInterface {
      * @param string $handlerKey
      * @return bool
      */
-    public function hasHandlerGroupKey(string $handlerKey): bool{
+    public function hasHandlerGroupKey(string $handlerKey) : bool{
         return in_array($handlerKey, $this->getHandlerGroups());
     }
 
     /**
      * @return bool
      */
-    public function hasBuffer(): bool{
+    public function hasBuffer() : bool{
         return $this->buffer;
     }
 
     /**
      * @return bool
      */
-    public function isGrouped(): bool{
+    public function isGrouped() : bool{
         return !empty($this->getHandlerGroups());
     }
 
@@ -416,39 +416,17 @@ abstract class AbstractLog implements LogInterface {
     }
 
     // Handler parameters for Monolog\Handler\AbstractHandler ---------------------------------------------------------
-    protected function getHandlerParamsStream(): array{
+
+    /**
+     * @return array
+     */
+    protected function getHandlerParamsStream() : array{
         $params = [];
         if( !empty($conf = $this->handlerParamsConfig['stream']) ){
             $params[] = $conf->stream;
-        }
-
-        return $params;
-    }
-
-    /**
-     * get __construct() parameters for ZMQHandler() call
-     * @return array
-     * @throws \ZMQSocketException
-     */
-    protected function getHandlerParamsZMQ(): array {
-        $params = [];
-        if( !empty($conf = $this->handlerParamsConfig['zmq']) ){
-            // meta data (required by receiver socket)
-            $meta = [
-                'logType' => 'mapLog',
-                'stream'=> $conf->streamConf->stream
-            ];
-
-            $context = new \ZMQContext();
-            $pusher = $context->getSocket(\ZMQ::SOCKET_PUSH);
-            $pusher->connect($conf->uri);
-
-            $params[] = $pusher;
-            $params[] = \ZMQ::MODE_DONTWAIT;
-            $params[] = false;                                      // multipart
-            $params[] = Logger::toMonologLevel($this->getLevel());  // min level that is handled
+            $params[] = Logger::toMonologLevel($this->getLevel());  // min level that is handled;
             $params[] = true;                                       // bubble
-            $params[] = $meta;
+            $params[] = 0666;                                       // permissions (default 644)
         }
 
         return $params;
@@ -458,7 +436,7 @@ abstract class AbstractLog implements LogInterface {
      * get __construct() parameters for SwiftMailerHandler() call
      * @return array
      */
-    protected function getHandlerParamsMail(): array{
+    protected function getHandlerParamsMail() : array {
         $params = [];
         if( !empty($conf = $this->handlerParamsConfig['mail']) ){
             $transport = (new \Swift_SmtpTransport())
@@ -518,11 +496,33 @@ abstract class AbstractLog implements LogInterface {
     }
 
     /**
+     * get __construct() parameters for SocketHandler() call
+     * @return array
+     */
+    protected function getHandlerParamsSocket() : array {
+        $params = [];
+        if( !empty($conf = $this->handlerParamsConfig['socket']) ){
+            // meta data (required by receiver socket)
+            $meta = [
+                'logType' => 'mapLog',
+                'stream'=> $conf->streamConf->stream
+            ];
+
+            $params[] = $conf->dsn;
+            $params[] = Logger::toMonologLevel($this->getLevel());
+            $params[] = true;
+            $params[] = $meta;
+        }
+
+        return $params;
+    }
+
+    /**
      * get __construct() params for SlackWebhookHandler() call
      * @param string $handlerKey
      * @return array
      */
-    protected function getHandlerParamsSlack(string $handlerKey): array {
+    protected function getHandlerParamsSlack(string $handlerKey) : array {
         $params = [];
         if( !empty($conf = $this->handlerParamsConfig[$handlerKey]) ){
             $params[] = $conf->slackWebHookURL;

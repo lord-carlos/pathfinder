@@ -8,9 +8,8 @@
 
 namespace Controller;
 
-use lib\Config;
-use lib\Socket;
-use Model;
+
+use Model\Pathfinder;
 
 class AccessController extends Controller {
 
@@ -20,13 +19,12 @@ class AccessController extends Controller {
      * @param $params
      * @return bool
      * @throws \Exception
-     * @throws \ZMQSocketException
      */
-    function beforeroute(\Base $f3, $params): bool {
+    function beforeroute(\Base $f3, $params) : bool {
         if($return = parent::beforeroute($f3, $params)){
             // Any route/endpoint of a child class of this one,
             // requires a valid logged in user!
-            if( !$this->isLoggedIn($f3) ){
+            if($this->isLoggedIn($f3) !== 'OK'){
                 // no character found or login timer expired
                 $this->logoutCharacter($f3);
                 // skip route handler and afterroute()
@@ -40,82 +38,90 @@ class AccessController extends Controller {
     /**
      * get current character and check if it is a valid character
      * @param \Base $f3
-     * @return bool
+     * @return string
      * @throws \Exception
      */
-    protected function isLoggedIn(\Base $f3): bool {
-        $loginCheck = false;
-        if( $character = $this->getCharacter() ){
-            if($this->checkLogTimer($f3, $character)){
-                if($character->isAuthorized() === 'OK'){
-                    $loginCheck = true;
+    protected function isLoggedIn(\Base $f3) : string {
+        $loginStatus = 'UNKNOWN';
+        if($character = $this->getCharacter()){
+            if($character->checkLoginTimer()){
+                if(( $authStatus = $character->isAuthorized()) === 'OK'){
+                    $loginStatus = 'OK';
+                }else{
+                    $loginStatus = $authStatus;
                 }
+            }else{
+                $loginStatus = 'MAX LOGIN TIME EXCEEDED';
             }
+        }else{
+            $loginStatus = 'NO SESSION FOUND';
         }
 
-        return $loginCheck;
+        // log character access status in debug mode
+        if(
+            $loginStatus !== 'OK' &&
+            $f3->get('DEBUG') === 3
+        ){
+            self::getLogger('CHARACTER_ACCESS')->write(
+                sprintf(Pathfinder\CharacterModel::LOG_ACCESS,
+                    $character->_id ,
+                    $loginStatus,
+                    $character->name
+                )
+            );
+        }
+
+        return $loginStatus;
     }
 
     /**
-     * checks whether a user/character is currently logged in
-     * @param \Base $f3
-     * @param Model\CharacterModel $character
-     * @return bool
+     * broadcast MapModel to clients
+     * @see broadcastMapData()
+     * @param Pathfinder\MapModel $map
      */
-    private function checkLogTimer(\Base  $f3, Model\CharacterModel $character){
-        $loginCheck = false;
-
-        if(
-            !$character->dry() &&
-            $character->lastLogin
-        ){
-            // check logIn time
-            $logInTime = new \DateTime($character->lastLogin);
-            $now = new \DateTime();
-
-            $timeDiff = $now->diff($logInTime);
-
-            $minutes = $timeDiff->days * 60 * 24 * 60;
-            $minutes += $timeDiff->h * 60;
-            $minutes += $timeDiff->i;
-
-            if($minutes <= Config::getPathfinderData('timer.logged')){
-                $loginCheck = true;
-            }
-        }
-
-        return $loginCheck;
+    protected function broadcastMap(Pathfinder\MapModel $map) : void {
+        $this->broadcastMapData($this->getFormattedMapData($map));
     }
+
 
     /**
      * broadcast map data to clients
      * -> send over TCP Socket
-     * @param Model\MapModel $map
-     * @return int (number of active connections for this map)
-     * @throws \Exception
-     * @throws \ZMQSocketException
+     * @param array|null $mapData
      */
-    protected function broadcastMapData(Model\MapModel $map){
-        $mapData = $this->getFormattedMapData($map);
-        return (int)(new Socket( Config::getSocketUri() ))->sendData('mapUpdate', $mapData);
+    protected function broadcastMapData(?array $mapData) : void {
+        if(!empty($mapData)){
+            $this->getF3()->webSocket()->write('mapUpdate', $mapData);
+        }
     }
 
     /**
      * get formatted Map Data
-     * @param Model\MapModel $map
+     * @param Pathfinder\MapModel $map
      * @return array
      * @throws \Exception
      */
-    protected function getFormattedMapData(Model\MapModel $map){
-        $mapData = $map->getData();
 
-        return [
-            'config' => $mapData->mapData,
-            'data' => [
-                'systems' => $mapData->systems,
-                'connections' => $mapData->connections,
-            ]
-        ];
+    /**
+     * @param Pathfinder\MapModel $map
+     * @return array|null
+     */
+    protected function getFormattedMapData(Pathfinder\MapModel $map) : ?array {
+        $data = null;
+        try{
+            $mapData = $map->getData();
+            $data = [
+                'config' => $mapData->mapData,
+                'data' => [
+                    'systems' => $mapData->systems,
+                    'connections' => $mapData->connections,
+                ]
+            ];
+        }catch(\Exception $e){
+
+        }
+
+        return $data;
     }
 
 }

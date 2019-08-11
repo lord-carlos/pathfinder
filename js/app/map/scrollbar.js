@@ -34,8 +34,9 @@ define([
             },
 
             advanced: {
+                autoUpdateTimeout: 120, // auto-update timeout (default: 60)
                 updateOnContentResize: true,
-                autoExpandHorizontalScroll: true,
+                autoExpandHorizontalScroll: false,  // on resize css scale() scroll content should not change
                 //autoExpandHorizontalScroll: 2,
                 autoScrollOnFocus: 'div',
             },
@@ -70,13 +71,44 @@ define([
     };
 
     /**
-     * scroll to a specific position in the map
+     * scroll to a specific position on map
      * demo: http://manos.malihu.gr/repository/custom-scrollbar/demo/examples/scrollTo_demo.html
+     * @param scrollWrapper
      * @param position
+     * @param options
      */
-    $.fn.scrollToPosition = function(position){
-        return this.each(function(){
-            $(this).mCustomScrollbar('scrollTo', position);
-        });
+    let scrollToPosition = (scrollWrapper, position, options) => {
+        $(scrollWrapper).mCustomScrollbar('scrollTo', position, options);
+    };
+
+    /**
+     * scroll to a specific system on map
+     * -> subtract some offset for tooltips/connections
+     * @param scrollWrapper
+     * @param position
+     * @param options
+     */
+    let scrollToSystem = (scrollWrapper, position, options) => {
+        position = getOffsetPosition(position, {x: -15, y: -35});
+        scrollToPosition(scrollWrapper, position, options);
+    };
+
+    /**
+     * add/subtract offset coordinates from position
+     * -> no negative values returned
+     * @param position
+     * @param offset
+     * @returns {{x: number, y: number}}
+     */
+    let getOffsetPosition = (position, offset) => {
+        return {
+            x: Math.max(0, position.x + offset.x),
+            y: Math.max(0, position.y + offset.y)
+        };
+    };
+
+    return {
+        scrollToPosition: scrollToPosition,
+        scrollToSystem: scrollToSystem
     };
 });

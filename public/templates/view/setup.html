@@ -1,12 +1,11 @@
 {* splash page *}
-<include href="templates/ui/splash.html"/>
+<include href="templates/layout/splash.html"/>
 
 <include href="img/logo.svg"/>
 
 {* counter for DB warnings (all databases) *}
 {{ @tplCounter('reset', 'database_warning_all') }}
-
-<section id="pf-setup-server">
+<section>
     <div class="container">
 
         <div class="row"></div>
@@ -22,14 +21,19 @@
 
         {* Errors *}
         <check if="{{ @errorData }}">
-                <div class="alert alert-danger">
-                    <button type="button" class="close" data-dismiss="alert" aria-label="Close"><i class="fas fa-times"></i></button>
-                    <span class="txt-color txt-color-danger">({{ @errorData->code }}) {{ @errorData->status }}</span>
-                    <small> {{ @errorData->message }}</small>
-                </div>
+            <div class="alert alert-danger">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close"><i class="fas fa-times"></i></button>
+                <span class="txt-color txt-color-danger">({{ @errorData->code }}) {{ @errorData->status }}</span>
+                <small> {{ @errorData->message }}</small>
+            </div>
         </check>
+    </div>
+</section>
 
-        <h4><i class="fas fa-fw fa-home"></i> Server</h4>
+<section id="pf-setup-server">
+    <div class="container">
+
+        <h4><i class="fas fa-fw fa-network-wired"></i> Server</h4>
 
         <div class="row text-center">
 
@@ -87,56 +91,32 @@
                         <table class="table">
                             <thead>
                             <tr>
-                                <td class="col-md-5">TEMP <i class="fas fa-fw fa-sm fa-question-circle pf-help-light" title="Temporary folder for cache, filesystem locks, compiled F3 templates, etc."></i></td>
-                                <td class="text-right col-md-7">
-                                    <kbd>{{ @TEMP }}</kbd>
-                                </td>
+                                <td></td>
+                                <td class="text-right col-md-4">config.ini</td>
+                                <td class="text-right col-md-1" title="permission from chmod()"><i class="fas fa-fw fa-key"></i></td>
                             </tr>
                             </thead>
-
                             <tbody>
-                            <tr>
-                                <td>CACHE <i class="fas fa-fw fa-sm fa-question-circle pf-help-light" title="Cache backend. F3 can handle Redis, Memcache, APC, WinCache, XCache and a filesystem-based (default) cache."></i></td>
-                                <td class="text-right">
-                                    <kbd>{{ @CACHE }}</kbd>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>LOGS <i class="fas fa-fw fa-sm fa-question-circle pf-help-light" title="Folder for pathfinder logs (e.g. cronjob-, error-logs, ..."></i></td>
-                                <td class="text-right">
-                                    <kbd>{{ @LOGS }}</kbd>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td >UI <i class="fas fa-fw fa-sm fa-question-circle pf-help-light" title="Folder for public accessible resources (templates, js, css, images,..)"></i></td>
-                                <td class="text-right">
-                                    <kbd>{{ @UI }}</kbd>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>AUTOLOAD <i class="fas fa-fw fa-sm fa-question-circle pf-help-light" title="Autoload folder for PHP files."></i></td>
-                                <td class="text-right">
-                                    <kbd>{{ @AUTOLOAD }}</kbd>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>FAVICON <i class="fas fa-fw fa-sm fa-question-circle pf-help-light" title="Folder for Favicons."></i></td>
-                                <td class="text-right">
-                                    <kbd>{{ @FAVICON }}</kbd>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>HISTORY [optional] <i class="fas fa-fw fa-sm fa-question-circle pf-help-light" title="Folder for log history files. (e.g. change logs for maps)"></i></td>
-                                <td class="text-right">
-                                    <kbd>{{ @PATHFINDER.HISTORY.LOG }}</kbd>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>CONFIG PATH [optional] <i class="fas fa-fw fa-sm fa-question-circle pf-help-light" title="Folder for custom *.ini files. (e.g. when overwriting of default values in app/*.ini)"></i></td>
-                                <td class="text-right">
-                                    <kbd>{{ implode(' ', @CONF ) }}</kbd>
-                                </td>
-                            </tr>
+                            <repeat group="{{ @directoryConfig }}" value="{{ @directoryData }}">
+                                <tr>
+                                    <td>{{@directoryData.label}}
+                                        <check if="{{ @directoryData.tooltip }}">
+                                            <i class="fas fa-fw fa-sm fa-question-circle pf-help-light" title="{{ @directoryData.tooltip }}"></i>
+                                        </check>
+                                    </td>
+                                    <td class="text-right">
+                                        <check if="{{ @directoryData.check }}">
+                                            <true>
+                                                <kbd>{{@directoryData.value | raw}}</kbd>
+                                            </true>
+                                            <false>
+                                                <kbd class="txt-color txt-color-danger">{{@directoryData.value | raw}}</kbd>
+                                            </false>
+                                        </check>
+                                    </td>
+                                    <td class="text-right">{{@directoryData.chmod}}</td>
+                                </tr>
+                            </repeat>
                             </tbody>
                         </table>
 
@@ -256,32 +236,6 @@
                 </div>
                 {{ @tplCounter('add', 'environment_warning', @tplCounter('get')) }}
                 {{ @tplCounter('reset') }}
-
-                {* Redis requirements *}
-                <check if="{{ @checkRedisConfig }}">
-                    <set requirementsData="{{ @checkRedisConfig }}" />
-
-                    <div class="panel panel-default pricing-big">
-                        <div class="panel-heading text-left">
-                            <h3 class="panel-title">Redis configuration [optional]</h3>
-                        </div>
-                        <div class="panel-body no-padding text-align-center">
-                            <include href="templates/modules/requirements_table.html"/>
-                        </div>
-                        <div class="panel-footer text-align-center">
-                            <check if="{{ !@tplCounter('get') }}">
-                                <true>
-                                    <h3 class="panel-title txt-color txt-color-success">OK</h3>
-                                </true>
-                                <false>
-                                    <h3 class="panel-title txt-color txt-color-warning">{{ @tplCounter('get') }} Warnings</h3>
-                                </false>
-                            </check>
-                        </div>
-                    </div>
-                    {{ @tplCounter('add', 'environment_warning', @tplCounter('get')) }}
-                    {{ @tplCounter('reset') }}
-                </check>
             </div>
         </div>
 
@@ -522,11 +476,12 @@
                                 </tr>
                                 <tr>
                                     <td>DB status</td>
-                                    <td class="text-right col-sm-3 col-md-3"></td>
-                                    <td class="text-right col-sm-3 col-md-3">
+                                    <td class="text-right col-sm-3 col-md-3" colspan="2">
                                         <check if="{{ @dbInformation.info.connected }}">
                                             <true>
-                                                <kbd class="txt-color txt-color-success">connected</kbd>
+                                                <kbd class="txt-color txt-color-success">
+                                                    connected<check if="{{ @dbInformation.info.persistent }}">&nbsp;(persistent)</check>
+                                                </kbd>
                                             </true>
                                             <false>
                                                 <kbd class="txt-color txt-color-danger">failed</kbd>
@@ -554,20 +509,22 @@
 
                                 <check if="{{ @dbInformation.info.dbConfig }}">
                                     <tr>
-                                        <th></th>
-                                        <th class="text-right">required</th>
-                                        <th class="text-right">installed</th>
-                                        <th class="text-right"></th>
+                                        <td data-target=".{{ @dbInformation.info.name }}_dbConfig_col" data-toggle="collapse">
+                                            <i class="fas fa-fw fa-chevron-right pf-animate-rotate"></i>
+                                        </td>
+                                        <td class="col-sm-3 col-md-3 text-right">required</td>
+                                        <td class="col-sm-3 col-md-3 text-right">installed</td>
+                                        <td class="col-sm-1 col-md-1 text-right"></td>
                                     </tr>
-                                    <repeat group="{{ @dbInformation.info.dbConfig }}" value="{{ @setting }}">
-                                        <tr>
-                                            <td>{{ @setting.label }}</td>
-                                            <td class="text-right">
+                                    <repeat group="{{ @dbInformation.info.dbConfig.data }}" value="{{ @setting }}">
+                                        <tr class="{{ @dbInformation.info.name }}_dbConfig_col {{ @dbInformation.info.dbConfig.meta.check ? 'collapse' : '' }}">
+                                            <td class="bg-color bg-color-tealDarker">{{ @setting.label }}</td>
+                                            <td class="text-right bg-color bg-color-tealDarker">
                                                 <check if="{{ @setting.required }}">
                                                     <kbd>{{ @setting.required }}</kbd>
                                                 </check>
                                             </td>
-                                            <td class="text-right">
+                                            <td class="text-right bg-color bg-color-tealDarker">
                                                 <check if="{{ @setting.check }}">
                                                     <true>
                                                         <kbd class="txt-color txt-color-success">{{ @setting.version }}</kbd>
@@ -577,7 +534,7 @@
                                                     </false>
                                                 </check>
                                             </td>
-                                            <td class="text-right">
+                                            <td class="text-right bg-color bg-color-tealDarker">
                                                 <check if="{{ @setting.check }}">
                                                     <true>
                                                         <i class="fas fa-fw fa-check txt-color txt-color-success"></i>
@@ -671,7 +628,7 @@
                                             </td>
                                             <td></td>
                                             <td></td>
-                                            <td class="text-center">
+                                            <td class="text-right">
                                                 <check if="{{ @tableData.statusCheckCount == 0 && @tableData.exists }}">
                                                     <true>
                                                         <i class="fas fa-fw fa-check txt-color txt-color-success"></i>
@@ -686,19 +643,20 @@
                                         {* Show Columns *}
                                         <check if="{{ @tableData.fieldConf }}">
                                             <tr class="{{ @dbInformation.info.name }}_{{ @tableName }}_col collapse">
-                                                <td class="text-center bg-color bg-color-tealDarkest">
+                                                <td class="text-right bg-color bg-color-tealDarkest">
                                                     <i class="fas fa-fw fa-hashtag"></i>
                                                 </td>
                                                 <td class="bg-color bg-color-tealDarkest">column</td>
                                                 <td class="bg-color bg-color-tealDarkest text-center">exist</td>
-                                                <td class="bg-color bg-color-tealDarkest" title="data type">type</td>
-                                                <td class="bg-color bg-color-tealDarkest text-center" title="nullable">null</td>
-                                                <td class="bg-color bg-color-tealDarkest text-center" title="index">I</td>
-                                                <td class="bg-color bg-color-tealDarkest text-center" title="unique">U</td>
+                                                <td class="bg-color bg-color-tealDarkest" title="data type" data-container="body">type</td>
+                                                <td class="bg-color bg-color-tealDarkest text-center" title="nullable" data-container="body">null</td>
+                                                <td class="bg-color bg-color-tealDarkest text-center" title="index" data-container="body">I</td>
+                                                <td class="bg-color bg-color-tealDarkest text-center" title="unique" data-container="body">U</td>
                                                 <td class="bg-color bg-color-tealDarkest text-center"></td>
                                             </tr>
                                             <repeat group="{{ @tableData.fieldConf }}" key="{{ @columnName }}" value="{{ @columnData }}" counter="{{ @countCol }}">
                                                 <check if="{{ @columnData.type }}">
+                                                    {* Required colums *}
                                                     <tr class="{{ @dbInformation.info.name }}_{{ @tableName }}_col collapse">
                                                         <td class="text-right bg-color bg-color-tealDarker">{{@countCol}}.</td>
                                                         <td class="bg-color bg-color-tealDarker">{{ @columnName }}</td>
@@ -780,7 +738,7 @@
                                                                 </false>
                                                             </check>
                                                         </td>
-                                                        <td class="bg-color bg-color-tealDarker text-center">
+                                                        <td class="bg-color bg-color-tealDarker text-right">
                                                             <check if="{{ @columnData.statusCheck }}">
                                                                 <true>
                                                                     <i class="fas fa-fw fa-check txt-color txt-color-success"></i>
@@ -792,13 +750,32 @@
                                                         </td>
                                                     </tr>
                                                 </check>
+                                                <check if="{{ @columnData.deprecated }}">
+                                                    {* Deprecated colums *}
+                                                    <tr class="{{ @dbInformation.info.name }}_{{ @tableName }}_col collapse txt-color txt-color-yellowDark">
+                                                        <td class="bg-color bg-color-tealDarker"></td>
+                                                        <td class="bg-color bg-color-tealDarker">{{ @columnName }}</td>
+                                                        <td class="bg-color bg-color-tealDarker text-center">
+                                                            <i class="fas fa-fw fa-bolt"></i>
+                                                        </td>
+                                                        <td class="bg-color bg-color-tealDarker">
+                                                            <kbd class="txt-color txt-color-yellowDark">{{ @columnData.currentType }}</kbd>
+                                                        </td>
+                                                        <td class="bg-color bg-color-tealDarker"></td>
+                                                        <td class="bg-color bg-color-tealDarker"></td>
+                                                        <td class="bg-color bg-color-tealDarker"></td>
+                                                        <td class="bg-color bg-color-tealDarker text-right">
+                                                            <i class="fas fa-fw fa-exclamation-triangle"></i>
+                                                        </td>
+                                                    </tr>
+                                                </check>
                                             </repeat>
                                         </check>
 
                                         {* Show Foreign Keys *}
                                         <check if="{{ @tableData.foreignKeys }}">
                                             <tr class="{{ @dbInformation.info.name }}_{{ @tableName }}_col collapse">
-                                                <td class="text-center bg-color bg-color-tealDarkest">
+                                                <td class="text-right bg-color bg-color-tealDarkest">
                                                     <i class="fas fa-fw fa-hashtag"></i>
                                                 </td>
                                                 <td class="bg-color bg-color-tealDarkest">foreign key</td>
@@ -811,15 +788,24 @@
                                             </tr>
                                             <repeat group="{{ @tableData.foreignKeys }}" value="{{ @keyData }}" counter="{{ @countForeignKey }}">
                                                 <tr class="{{ @dbInformation.info.name }}_{{ @tableName }}_col collapse">
-                                                    <td class="text-center bg-color bg-color-tealDarker">{{@countForeignKey}}.</td>
-                                                    <td class="bg-color bg-color-tealDarker" colspan="6">{{ @keyData.keyName }}</td>
-                                                    <td class="bg-color bg-color-tealDarker text-center">
+                                                    <td class="text-right bg-color bg-color-tealDarker">{{@countForeignKey}}.</td>
+                                                    <td class="bg-color bg-color-tealDarker" colspan="6">
+                                                        <check if="{{ @keyData.exists }}">
+                                                            <true>
+                                                                <kbd class="txt-color txt-color-success">{{ @keyData.keyName }}</kbd>
+                                                            </true>
+                                                            <false>
+                                                                <kbd class="txt-color txt-color-danger" title="Foreign key not found">{{ @keyData.keyName }}</kbd>
+                                                            </false>
+                                                        </check>
+                                                    </td>
+                                                    <td class="bg-color bg-color-tealDarker text-right">
                                                         <check if="{{ @keyData.exists }}">
                                                             <true>
                                                                 <i class="fas fa-fw fa-check txt-color txt-color-success"></i>
                                                             </true>
                                                             <false>
-                                                                <i class="fas fa-fw fa-ban txt-color txt-color-danger" title="key missing"></i>
+                                                                <i class="fas fa-fw fa-ban txt-color txt-color-danger" title="Foreign key not found"></i>
                                                             </false>
                                                         </check>
                                                     </td>
@@ -901,10 +887,136 @@
     </div>
 </section>
 
+<section id="pf-setup-cache">
+    <div class="container">
+
+        <h4><i class="fas fa-fw fa-hdd"></i> Cache <span class="txt-color txt-color-gray">[optional]</span></h4>
+
+        <div class="row text-center">
+            <check if="{{ @checkRedisInformation }}">
+                <true>
+                    {* Redis server found *}
+                    <repeat group="{{ @checkRedisInformation }}" value="{{ @redisInformation }}" counter="{{ @countRedisServer }}">
+
+                        <div class="col-xs-12 col-md-6 pf-landing-pricing-panel">
+                            <div class="panel panel-default pricing-big">
+                                <div class="panel-heading text-left">
+                                    <h3 class="panel-title">Redis server No.{{ @countRedisServer }}</h3>
+                                </div>
+
+                                <div class="panel-body no-padding text-left">
+                                    <table class="table">
+                                        <thead>
+                                        <tr>
+                                            <td>{{ @redisInformation.dsn.label }}</td>
+                                            <td class="text-right col-sm-6 col-md-3" colspan="2"><kbd>{{ @redisInformation.dsn.value }}</kbd></td>
+                                            <td class="text-right col-sm-1 col-md-1"></td>
+                                        </tr>
+                                        </thead>
+                                        <tbody>
+                                        <tr>
+                                            <td>{{ @redisInformation.connected.label }}</td>
+                                            <td class="text-right col-sm-6 col-md-3" colspan="2">
+                                                <check if="{{ @redisInformation.connected.value }}">
+                                                    <true>
+                                                        <kbd class="txt-color txt-color-success">connected</kbd>
+                                                    </true>
+                                                    <false>
+                                                        <kbd class="txt-color txt-color-danger">failed</kbd>
+                                                    </false>
+                                                </check>
+                                            </td>
+                                            <td class="text-right col-sm-1 col-md-1">
+                                                <check if="{{ @redisInformation.connected.value }}">
+                                                    <true>
+                                                        <i class="fas fa-fw fa-check txt-color txt-color-success"></i>
+                                                    </true>
+                                                    <false>
+                                                        <i class="fas fa-fw fa-exclamation-triangle txt-color txt-color-danger"></i>
+                                                        {{ @tplCounter('increment', 'cache_danger') }}
+                                                    </false>
+                                                </check>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 0"></td>
+                                            <td style="padding: 0"></td>
+                                            <td style="padding: 0"></td>
+                                            <td style="padding: 0"></td>
+                                        </tr>
+                                        </tbody>
+                                    </table>
+
+                                    <check if="{{ @redisInformation.status }}">
+                                        <set requirementsData="{{ @redisInformation.status }}" />
+                                        <include href="templates/modules/requirements_table.html"/>
+                                    </check>
+                                </div>
+
+                                {{ @tplCounter('add', 'cache_warning', @tplCounter('get')) }}
+                                {{ @tplCounter('reset') }}
+
+                                <div class="panel-footer text-align-center">
+                                    <check if="{{ !@tplCounter('get', 'cache_danger') }}">
+                                        <true>
+                                            <h3 class="panel-title txt-color txt-color-success">OK</h3>
+                                        </true>
+                                        <false>
+                                            <h3 class="panel-title txt-color txt-color-danger">Connection failed</h3>
+                                        </false>
+                                    </check>
+                                </div>
+                            </div>
+                        </div>
+
+                    </repeat>
+                </true>
+                <false>
+                    {* No Redis server *}
+                    <div class="col-xs-12 col-md-6 pf-landing-pricing-panel">
+                        <div class="panel panel-default pricing-big" style="position: relative">
+                            <div class="panel-heading text-left">
+                                <h3 class="panel-title">Redis server</h3>
+                            </div>
+
+                            <div class="panel-body no-padding text-left">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <td>
+                                                <i class="fas fa-fw fa-exclamation txt-color txt-color-info"></i>
+                                                Redis can be used as Cache backend
+                                            </td>
+                                            <td class="text-right"><kbd>pathfinder.ini</kbd></td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                <i class="fas fa-fw fa-exclamation txt-color txt-color-info"></i>
+                                                Redis can be used as PHP Sessions handler
+                                            </td>
+                                            <td class="text-right"><kbd>php.ini</kbd></td>
+                                        </tr>
+                                    </thead>
+                                </table>
+                            </div>
+
+                            <div class="panel-footer text-align-center">
+                                <h3 class="panel-title txt-color txt-color-warning">No Redis configuration found</h3>
+                            </div>
+                        </div>
+                    </div>
+                </false>
+            </check>
+
+
+        </div>
+    </div>
+</section>
+
 <section id="pf-setup-socket">
     <div class="container">
 
-        <h4><i class="fas fa-fw fa-exchange-alt"></i> Socket configuration <span class="txt-color txt-color-gray">[optional]</span></h4>
+        <h4><i class="fas fa-fw fa-random"></i> Socket configuration <span class="txt-color txt-color-gray">[optional]</span></h4>
 
         <div class="row text-center">
 
@@ -912,7 +1024,14 @@
                 <div class="col-xs-12 col-md-6 pf-landing-pricing-panel">
                     <div id="pf-setup-{{ @socketType }}" data-token="{{ @socketData.token }}" class="panel panel-default pricing-big" style="position: relative">
                         <div class="panel-heading text-left">
-                            <h3 class="panel-title">{{ @socketData.label }}</h3>
+                            <h3 class="panel-title"><i class="fas {{ @socketData.icon }}"></i>&nbsp;&nbsp;{{ @socketData.label }}
+                                <check if="{{ @socketData.stats }}">
+                                    <span class="pull-right">
+                                        <kbd title="current active connections">{{ @socketData.stats.connections }} con</kbd>&nbsp;&nbsp;&nbsp;
+                                        <kbd title="max active connections since startup">{{ @socketData.stats.maxConnections }} con max</kbd>
+                                    </span>
+                                </check>
+                            </h3>
                         </div>
 
                         <div class="panel-body no-padding text-left">
@@ -922,7 +1041,14 @@
                                         <tr>
                                             <td>{{ @entry.label }}</td>
                                             <td class="text-right col-md-8">
-                                                <kbd>{{@entry.value | raw}}</kbd>
+                                                <check if="{{ @entry.check !== false }}">
+                                                    <true>
+                                                        <kbd>{{@entry.value | raw}}</kbd>
+                                                    </true>
+                                                    <false>
+                                                        <kbd class="txt-color txt-color-danger">{{@entry.value | raw}}</kbd>
+                                                    </false>
+                                                </check>
                                             </td>
                                             <td class="text-right col-md-1">
                                                 <check if="{{ @entry.check }}">
@@ -942,16 +1068,78 @@
                         </div>
 
                         <div class="panel-footer text-align-center">
-                            <check if="{{ @socketData.online }}">
-                                <true>
-                                    <h3 class="panel-title txt-color txt-color-success">PING SEND</h3>
-                                </true>
-                                <false>
-                                    <h3 class="panel-title txt-color txt-color-danger">INIT CONNECTION...</h3>
-                                    {{ @tplCounter('increment', 'socket_danger') }}
-                                </false>
+                            <h3 class="panel-title txt-color {{ @socketData.status.class }}">{{ @socketData.status.label }}</h3>
+                            <check if="{{ @socketData.status.type == 'danger' }}">
+                                {{ @tplCounter('increment', 'socket_danger') }}
                             </check>
                         </div>
+
+                        {* show log data from "stats" array *}
+                        <check if="{{ @socketData.stats.logs }}">
+                            <div class="panel-body no-padding text-left">
+                                <table class="table">
+                                    <thead>
+                                    <tr>
+                                        <td class="col-xs-1" data-target=".{{ @socketType }}_log_col" data-toggle="collapse">
+                                            <i class="fas fa-fw fa-chevron-right pf-animate-rotate"></i>
+                                        </td>
+                                        <td>client URI</td>
+                                        <td class="col-xs-2">file #line</td>
+                                        <td>message</td>
+                                        <td class="col-md-1 text-right">type</td>
+                                    </tr>
+                                    </thead>
+                                    <tbody>
+
+                                    <set logsCheck = 'OK' />
+                                    <repeat group="{{ @socketData.stats.logs }}" value="{{ @logData }}">
+                                        <set logTypeClass = "" />
+                                        <check if="{{ in_array('info', @logData.logTypes) }}">
+                                            <set logTypeClass = "txt-color-info" />
+                                        </check>
+                                        <check if="{{ in_array('error', @logData.logTypes) }}">
+                                            <set logTypeClass = "txt-color-warning" />
+                                            <set logsCheck = 'ERROR' />
+                                        </check>
+
+                                        <tr class="{{ @socketType }}_log_col {{ @logsCheck == 'OK' ? 'collapse' : '' }}">
+                                            <td class="bg-color bg-color-tealDarker" title="{{ @logData.mTimeFormat1 }}" data-container="body">
+                                                {{ @logData.mTimeFormat2 }}
+                                            </td>
+                                            <td class="bg-color bg-color-tealDarker" title="{{ @logData.remoteAddress }}" data-container="body">
+                                                <set cellValue = "{{ parse_url(@logData.remoteAddress, PHP_URL_HOST) . parse_url(@logData.remoteAddress, PHP_URL_PATH) }}" />
+                                                <check if="{{ parse_url(@logData.remoteAddress, PHP_URL_PORT) }}">
+                                                    <set cellValue = "{{ @cellValue . ':' . parse_url(@logData.remoteAddress, PHP_URL_PORT) }}" />
+                                                </check>
+
+                                                <check if="{{ @logData.resourceId }}">
+                                                    <set cellValue = "{{ @cellValue . '&nbsp;#' . @logData.resourceId }}" />
+                                                </check>
+
+                                                <check if="{{ @cellValue }}">
+                                                    <true>
+                                                        <kbd>{{ @cellValue}}</kbd>
+                                                    </true>
+                                                    <false>
+                                                        <check if="{{ @logData.action != 'START' }}">
+                                                            <kbd title="send to multiple clients" class="txt-color txt-color-success">broadcast</kbd>
+                                                        </check>
+                                                    </false>
+                                                </check>
+                                            </td>
+                                            <td class="bg-color bg-color-tealDarker" title="{{ @logData.fileName }} #{{ @logData.lineNumber }}" data-container="body">
+                                                <kbd>{{ mb_strimwidth(pathinfo(@logData.fileName, PATHINFO_FILENAME), 0, 15, '…') }}</kbd>
+                                            </td>
+                                            <td class="bg-color bg-color-tealDarker">{{ @logData.message }}</td>
+                                            <td class="text-right bg-color bg-color-tealDarker" title="{{ implode(@logData.logTypes, ', ') }}" data-placement="right" data-container="body">
+                                                <i class="fas fa-fw fa-tag txt-color {{ @logTypeClass }}"></i>
+                                            </td>
+                                        </tr>
+                                    </repeat>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </check>
 
                     </div>
                 </div>
@@ -975,9 +1163,9 @@
 
                     <div class="panel-heading text-left">
                         <h3 class="panel-title">
-                            Index data
+                            <i class="fas fa-search"></i>&nbsp;&nbsp;Index data
                             <i class="fas fa-fw fa-sm fa-question-circle pf-help-light" title="
-                            Indexed data is required for some queries (e.g. route finder module, static wormholes,... ).
+                            Indexed data is required for some queries (e.g. route finder module, static wormholes,…).
                             Building/Importing data may take a while (~20s). Increase 'max_execution_time' if you run into PHP timeouts." data-container="body"></i>
                         </h3>
                     </div>
@@ -1026,15 +1214,15 @@
 
             <div class="col-xs-12 col-md-6 pf-landing-pricing-panel">
 
-                {* Cache *}
+                {* Filesystem cache *}
                 <div class="panel panel-default pricing-big">
 
                     <div class="panel-heading text-left">
-                        <h3 class="panel-title">Files cache
+                        <h3 class="panel-title"><i class="fas fa-folder"></i>&nbsp;&nbsp;Filesystem cache
                             <kbd class="pull-right">
-                                <check if="{{ @cacheSize.all }}">
+                                <check if="{{ @checkDirSize.sizeAll }}">
                                     <true>
-                                        {{ @cacheSize.all }}
+                                        {{ @checkDirSize.sizeAll }}
                                     </true>
                                     <false>
                                         0KB
@@ -1045,52 +1233,28 @@
                     </div>
 
                     <div class="panel-body no-padding">
-                        <check if="{{ @cacheType === 'redis' }}">
+                        <repeat group="{{ @checkDirSize.dirAll }}" key="{{ @key }}" value="{{ @dirData }}">
                             <div class="btn-group btn-group-justified">
                                 <span class="btn btn-default disabled btn-fake">
-                                    Redis cache
+                                    {{ @dirData.label }}
+                                    <kbd class="pull-right">{{ @dirData.path }}&nbsp;→
+                                        <check if="{{ @dirData.size }}">
+                                            <true>
+                                                {{ @dirData.size }}
+                                            </true>
+                                            <false>
+                                                0KB
+                                            </false>
+                                        </check>
+                                    </kbd>
                                 </span>
-                                <a href="?action=clearCache#pf-setup-administration" class="btn btn-danger" role="button">
-                                    <i class="fas fa-fw fa-times"></i> Clear all keys
-                                </a>
+                                <repeat group="{{ @dirData.task }}"  value="{{ @taskData }}">
+                                    <a href="?{{ @taskData.action }}#pf-setup-administration" class="btn {{ @taskData.btn }}" role="button">
+                                        <i class="fas fa-fw {{ @taskData.icon }}"></i> {{ @taskData.label }}
+                                    </a>
+                                </repeat>
                             </div>
-                        </check>
-
-                        <div class="btn-group btn-group-justified">
-                            <span class="btn btn-default disabled btn-fake">
-                                Data
-                                <kbd class="pull-right">
-                                    <check if="{{ @cacheSize.data }}">
-                                        <true>
-                                            {{ @cacheSize.data }}
-                                        </true>
-                                        <false>
-                                            0KB
-                                        </false>
-                                    </check>
-                                </kbd>
-                            </span>
-                            <a href="?action=clearCache#pf-setup-administration" class="btn btn-danger {{ (@cacheSize.data) ?'':'disabled' }}" role="button">
-                                <i class="fas fa-fw fa-times"></i> Delete files
-                            </a>
-                        </div>
-
-                        <div class="btn-group btn-group-justified">
-                            <span class="btn btn-default disabled btn-fake">
-                                Template
-                                <kbd class="pull-right">
-                                    <check if="{{ @cacheSize.template }}">
-                                        <true>
-                                            {{ @cacheSize.template }}
-                                        </true>
-                                        <false>
-                                            0KB
-                                        </false>
-                                    </check>
-                                </kbd>
-                            </span>
-                            <span class="btn btn-default disabled btn-fake"></span>
-                        </div>
+                        </repeat>
                     </div>
                 </div>
             </div>
@@ -1099,7 +1263,7 @@
                 {* Cookie *}
                 <div class="panel panel-default pricing-big">
                     <div class="panel-heading text-left">
-                        <h3 class="panel-title">Cookies
+                        <h3 class="panel-title"><i class="fas fa-cookie-bite"></i>&nbsp;&nbsp;Cookies
                             <i class="fas fa-fw fa-sm fa-question-circle pf-help-light" title="Force all users to re-login through SSO. "></i>
                         </h3>
                     </div>
@@ -1108,7 +1272,7 @@
                         <div class="btn-group btn-group-justified">
                             <span class="btn btn-default disabled btn-fake">Invalidate all Cookie data</span>
                             <a href="?action=invalidateCookies#pf-setup-administration" class="btn btn-danger" role="button">
-                                <i class="fas fa-fw fa-times"></i> Clear authentication data
+                                <i class="fas fa-fw fa-trash"></i> Clear authentication data
                             </a>
                         </div>
                     </div>
@@ -1144,6 +1308,6 @@
         </div>
     </div>
 </nav>
-TREST: {{ @tplCounter('get', 'database_warning_all') }}
+
 {* footer *}
-<include href="templates/ui/footer.html"/>
+<include href="templates/layout/footer_simple.html"/>

@@ -6,9 +6,8 @@ define([
     'jquery',
     'app/init',
     'app/util',
-    'app/render',
     'bootbox'
-], ($, Init, Util, Render, bootbox) => {
+], ($, Init, Util, bootbox) => {
     'use strict';
 
     let config = {
@@ -88,7 +87,7 @@ define([
                     let data = {
                         isFirst: (i === 0),
                         isOdd: (i % 2 !== 0),
-                        releaseDate: releaseData.published_at.substr(0, 10),
+                        releaseDate: releaseData.publishedAt.substr(0, 10),
                         releaseData: releaseData
                     };
 

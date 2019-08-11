@@ -12,7 +12,8 @@
   left: 0;
   width: 100%;
   height: 3px;
-  @include background-image(linear-gradient(to right, $green-light, $green-light 100%));
+
+  @include rainbow;
 
   &.warning{
     @include background-image(linear-gradient(to right, $brand-warning, $brand-warning 100%));
@@ -24,7 +25,7 @@
 }
 
 .pf-splash{
-  position: absolute;
+  position: fixed;
   z-index: 2000;
   background-color: $gray-darkest;
   color: $gray-light;
@@ -630,6 +631,13 @@
   // table
   table tr td {
     line-height: 1;
+
+    .btn-group {
+      .btn { // smaller buttons on /setup page in tables
+        padding-top: 4px;
+        padding-bottom: 4px;
+      }
+    }
   }
 }
 
@@ -703,6 +711,8 @@
 
 // setup page -----------------------------------------------------------------
 .pf-body[data-script='setup']{
+  user-select: text;
+
   .navbar-brand:hover{
     color: #777; // overwrite default
   }
@@ -724,6 +734,10 @@
         margin-bottom: 0; // overwrite default
       }
     }
+  }
+
+  .panel-heading{
+    padding-right: 8px; // overwrite default
   }
 }
 

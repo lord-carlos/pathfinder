@@ -8,12 +8,19 @@
 
 namespace Model\Universe;
 
+
 use DB\SQL\Schema;
 
-class RegionModel extends BasicUniverseModel {
+class RegionModel extends AbstractUniverseModel {
 
+    /**
+     * @var string
+     */
     protected $table = 'region';
 
+    /**
+     * @var array
+     */
     protected $fieldConf = [
         'name' => [
             'type' => Schema::DT_VARCHAR128,
@@ -25,7 +32,7 @@ class RegionModel extends BasicUniverseModel {
         ],
         'constellations' => [
             'has-many' => ['Model\Universe\ConstellationModel', 'regionId']
-        ],
+        ]
     ];
 
     /**
@@ -46,7 +53,7 @@ class RegionModel extends BasicUniverseModel {
      * @param array $additionalOptions
      */
     protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
-        $data = self::getF3()->ccpClient->getUniverseRegionData($id);
+        $data = self::getF3()->ccpClient()->getUniverseRegionData($id);
         if(!empty($data)){
             $this->copyfrom($data, ['id', 'name', 'description']);
             $this->save();
@@ -58,7 +65,7 @@ class RegionModel extends BasicUniverseModel {
      */
     public function loadConstellationsData(){
         if( !$this->dry() ){
-            $data = self::getF3()->ccpClient->getUniverseRegionData($this->_id);
+            $data = self::getF3()->ccpClient()->getUniverseRegionData($this->_id);
             if(!empty($data)){
                 foreach((array)$data['constellations'] as $constellationsId){
                     /**
